@@ -22,3 +22,8 @@ build/*
 *.fls
 *.log
 *.out
+*.aux
+*.bbl
+*.log
+*.out
+user_manual/user_manual.pdf

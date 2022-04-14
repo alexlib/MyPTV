@@ -94,7 +94,7 @@
 The 3D-PTV method is used to measure trajectories of particles in 3D space. It utilities the principles of stereoscopic vision in order to reconstruct 3D positions of particles from images taken from several angles. A scheme of a typical 3D-PTV experiment using a four camera system is shown in Fig.~\ref{fig:3dptv_exp}. The "work horse" behind the 3D-PTV method is the co-linearity condition, the 3D model. In principle, if we know what is the position and what is the orientation of the camera in 3D space ($O'$ and $\theta$ in Fig.~\ref{fig:3dmodel}), we can use the pin-hole camera model to relate the image space coordinates of a particle ($\eta,\, \zeta$ in Fig.~\ref{fig:3dmodel}) to the ray of light connecting the imaging center and the particle. Then, if we have more than one camera, the particle will be located at the intersection of the two rays. Detailed information is given in \cite{Virant1997, Mass1993}.  
 
 
-\begin{figure}[h!]
+\begin{figure}[!ht]
 	\centering
 	\subfloat[]{\label{fig:3dptv_exp}
 		\includegraphics[width=6.5cm]{3D_PTV_acquisition.pdf}}
@@ -166,7 +166,7 @@ where $[E]$ is a $3\times5$ matrix that holds the correction coefficients; the l
 
 
 
-\begin{table}[h]
+\begin{table}[!ht]
 	\centering
 	\caption{Description of mathematical notation. \label{tab1:mathdesc}}
 	\begin{tabular}{p{5em} p{30em}}
@@ -282,7 +282,7 @@ First, we need to prepare a \textit{target file}. This is a text file which list
 Then, each camera in MyPTV is calibrated separately. Thus, to calibrate a camera, we make sure that we have a calibration image ready (as seen in Fig.~\ref{fig:cal_img}, for example). Then, we perform an initial "rough" calibration, and finish of with the final calibration. 
 
 
-\begin{figure}[h]
+\begin{figure}[!ht]
 	\centering
 	\includegraphics[width=10cm]{target_file.pdf}
 	\caption{Format of the target file, which lists the lab-space coordinates of the calibration target as tab-separated values. The order at which points are given is not relevant. \label{fig:target_file}}
@@ -292,7 +292,7 @@ Then, each camera in MyPTV is calibrated separately. Thus, to calibrate a camera
 \begin{table}
 \centering
 \caption{The \texttt{params\_file.yml} parameters for the calibration step. All paths to files are relative to the \texttt{workflow.py} script.}
-\begin{tabular}{l m{10cm}}
+\begin{tabular}{l m{9.5cm}}
 	\hline
 	Parameter & Description\\
 	\hline
@@ -433,7 +433,7 @@ In this step we extract the particle coordinates in the images and save the coor
 \end{enumerate}
 
 
-\begin{table}[h]
+\begin{table}[!ht]
 	\centering
 	\caption{The \texttt{params\_file.yml} parameters for the segmentation step. All paths to files are relative to the \texttt{workflow.py} script.}
 	\begin{tabular}{l m{10cm}}
@@ -486,7 +486,7 @@ In this step we extract the particle coordinates in the images and save the coor
 In the matching step, particles images in the various images are used to stereo-locate (triangulate) the 3D positions of particles in the lab-space coordinates. As before, run first only on several images to find optimal parameter values, and only then iterate over all frames by setting \texttt{N\_frames: None} and save the results. 
 
 
-\begin{table}[h!]
+\begin{table}[!ht]
 	\centering
 	\caption{The \texttt{params\_file.yml} parameters for the matching step. All paths to files are relative to the \texttt{workflow.py} script.}
 	\begin{tabular}{l m{10cm}}
@@ -527,7 +527,7 @@ The tracking step is used to link particle in the lab space coordinates in time,
 
 
 
-\begin{table}[h!]
+\begin{table}[!ht]
 	\centering
 	\caption{The \texttt{params\_file.yml} parameters for the tracking step. All paths to files are relative to the \texttt{workflow.py} script.}
 	\begin{tabular}{l m{10cm}}
@@ -561,7 +561,7 @@ The smoothing step is used to smooth trajectories in time and to calculate the v
 
 
 
-\begin{table}[h!]
+\begin{table}[!ht]
 	\centering
 	\caption{The \texttt{params\_file.yml} parameters for the smoothing step. All paths to files are relative to the \texttt{workflow.py} script.}
 	\begin{tabular}{l m{10cm}}
@@ -590,7 +590,7 @@ The smoothing step is used to smooth trajectories in time and to calculate the v
 This step is used to re-track trajectories once velocities are known and to "stitch" broken trajectories following the algorithm of Ref.~\cite{Xu2008}.
 
 
-\begin{table}[h!]
+\begin{table}[!ht]
 	\centering
 	\caption{The \texttt{params\_file.yml} parameters for the smoothing step. All paths to files are relative to the \texttt{workflow.py} script.}
 	\begin{tabular}{l m{10cm}}
@@ -659,7 +659,7 @@ The important functionalities are:
 
 After calibration we can save the camera parameters on the hard disc. The camera files have the structure shown in Fig.~\ref{fig:camfiles}.
 
-\begin{figure}[h]
+\begin{figure}[!ht]
 	\centering
 	\includegraphics[width=\textwidth]{camera_files.pdf}
 	\caption{The structure of a camera file. The files are simple text files where each row corresponds to a specific parameter and the values in each row are separated by a white space. \label{fig:camfiles}}
@@ -799,7 +799,7 @@ important functionalities are:
 	\item \texttt{save\_results(fname)} - Will save the segmented particles in a text file. The file is arranged in six columns with the following attributes: (x center position, y center position, x size, y size, area, image number), see Fig.~\ref{fig:blobfile}.
 \end{enumerate}
 
-\begin{figure}[h!]
+\begin{figure}[!ht]
 	\centering
 	\includegraphics[width=10cm]{blob_file.pdf}
 	\caption{An example of a text file holding the segmentation resuls and the description of the different columns. \label{fig:blobfile}} 
@@ -851,7 +851,7 @@ The important functionalities are:
 
 
 
-\begin{figure}[h!]
+\begin{figure}[!ht]
 	\centering
 	\includegraphics[width=12cm]{particle_file.pdf}
 	\caption{An example of a text file holding the triangulated particles' resuls and the description of the different columns. In this example there were three cameras. \label{fig:particlefile}} 
@@ -965,7 +965,7 @@ The inputs are:
 	\item \texttt{polyorder} - The order of the polynomial used in the fitting. 
 \end{enumerate}
 
-\begin{figure}[h!]
+\begin{figure}[!ht]
 	\centering
 	\includegraphics[width=12cm]{smoothed_trajfile.pdf}
 	\caption{Example file holding the results of smoothed trajectories, and the description for each column. Note also the unsmoothed samples at the bottom of the file. \label{fig:smoothedfile}}
@@ -1013,7 +1013,7 @@ The important functionalities are:
 \end{enumerate}
 
 
-
+% Ron, learn: \verb|filename___with_many___underscores|
 
 
 \bibliography{bib_myPTV}
