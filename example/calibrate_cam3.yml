@@ -1,0 +1,8 @@
+- calibration:
+    camera_name: Calibration/cam3.ori
+    calibration_points_file: Calibration/cal_points3.csv
+    target_file: Calibration/target_file.csv
+    segmented_points_file: Calibration/cam3_blobs.csv
+    calibration_image: Calibration/cal3.tif
+    resolution: 1280, 1024
+
