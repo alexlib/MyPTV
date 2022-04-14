@@ -1,9 +1,9 @@
 - calibration:
     camera_name: cam1.ori
-    calibration_points_file: ./Calibration/cal_points1.csv
-    target_file: ./Calibration/target_file.csv
-    segmented_points_file: ./Calibration/cal_blobs_1
-    calibration_image: ./Calibration/cal1.tif
+    calibration_points_file: Calibration/cal_points1.csv
+    target_file: Calibration/target_file.csv
+    segmented_points_file: Calibration/cam1_blobs.csv
+    calibration_image: Calibration/cal1.tif
     resolution: 1280, 1024
 
 - segmentation:
@@ -12,7 +12,7 @@
     image_extension: '.tif'
     mask: 1.0
     ROI: 227, 1050, 156, 932
-    plot_result: False
+    plot_result: True
     threshold: 14.0
     blur_sigma: 0.4 
     local_filter: 20
@@ -22,7 +22,7 @@
     max_xsize: 10.0
     max_ysize: 10.0
     max_area: 20.0
-    save_name: None
+    save_name: Calibration/cam1_blobs.csv
 
 - matching:
     blob_files: blobs_cam1, blobs_cam2, blobs_cam3
