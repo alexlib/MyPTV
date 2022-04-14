@@ -1,7 +1,7 @@
 - calibration:
-    camera_name: cam1
-    calibration_points_file: ./Calibration/cal_points1_full
-    target_file: ./Calibration/target_file
+    camera_name: cam1.ori
+    calibration_points_file: ./Calibration/cal_points1.csv
+    target_file: ./Calibration/target_file.csv
     segmented_points_file: ./Calibration/cal_blobs_1
     calibration_image: ./Calibration/cal1.tif
     resolution: 1280, 1024
