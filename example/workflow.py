@@ -46,12 +46,12 @@ class workflow(object):
         
         # perform the wanted action:
         if action is None:
-            print('Started workflow wi no particular action.')
+            print('Started workflow with no particular action.')
             
         elif action != None:
             
-            allowd_actions = ['calibration', 'match_target_file', 
-                              'segmentation', 'matching',
+            allowd_actions = ['calibration', 'calibration_point_gui', 
+                              'match_target_file', 'segmentation', 'matching',
                               'tracking', 'smoothing', 'stitching']
             
             msg1 = 'The given action is unknown.'
@@ -61,7 +61,10 @@ class workflow(object):
             
             elif action == 'calibration':
                 self.calibration_sequence()
-                
+            
+            elif action == 'calibration_point_gui':
+                self.calibration_point_gui()
+            
             elif action == 'match_target_file':
                 self.match_target_file()
                 
@@ -119,9 +122,16 @@ class workflow(object):
         '''
         Fetches a parameter value from the self.params DataFrame.
         '''
+        if act not in set(self.params['operation']):
+            raise ValueError('Cant find action %s in the parameter file.'%act)
+        
         par_seg = self.params[self.params['operation']==act]
+        
+        if param not in set(par_seg['param']):
+            msg = 'Cant find the %s -> %s in the parameters file.'%(act,param)
+            raise ValueError(msg)
+        
         return par_seg[par_seg['param']==param]['value'].iloc[0]
-    
     
     
     
@@ -189,7 +199,8 @@ class workflow(object):
         from myptv.imaging_mod import camera
         from myptv.calibrate_mod import calibrate
         from os import listdir
-        from matplotlib.pyplot import subplots, show, imread, imshow
+        from os.path import isfile
+        from matplotlib.pyplot import subplots, show, imread
         
         # fetch parameters from the file
         cam_name = self.get_param('calibration', 'camera_name')
@@ -200,12 +211,24 @@ class workflow(object):
         
         
         # checking that a camera file in the working directory
-        ls = listdir('.')
+        ls = listdir('.')                
         
         # if the file is found, start calibration sequence
         if cam_name in ls:
             print('Starting calibration sequence.')
-            cam = camera(cam_name, res, cal_points_fname = blob_file)
+            
+            try:
+                cam = camera(cam_name, res, cal_points_fname = blob_file)
+            except:
+                print('\n','Calibration point file (%s) not found!'%blob_file)
+                print('\n','Would you like to start the calibration point gui?')
+                user = input('1=yes,  else=no : ')
+                if user == '1':
+                    self.calibration_point_gui()  
+                else:
+                    print('quitting...')
+                return 
+            
             cam.load('.')
             print('camera data loaded successfully.')
             cal = calibrate(cam, cam.lab_points, cam.image_points)
@@ -250,7 +273,6 @@ class workflow(object):
                     cam.save('.')
                     
             
-        
         # if not, generate an empty file camera file
         else:
             print('')
@@ -262,6 +284,23 @@ class workflow(object):
             cam.save('.')
             print('\n', 'Done.')
     
+    
+    
+    
+    def calibration_point_gui(self):
+        '''
+        This will start the calibration segmentation point gui.
+        '''
+        from myptv.cal_point_gui import cal_point_gui
+        
+        # fetch parameters from the file
+        blob_file = self.get_param('calibration', 'calibration_points_file')
+        cal_image = self.get_param('calibration', 'calibration_image')
+        res = self.get_param('calibration', 'resolution').split(',')
+        res = (float(res[0]), float(res[1]))
+        
+        print('\n', 'Starting calibration point segmentation GUI', '\n')
+        gui = cal_point_gui(cal_image, blob_file)
     
     
     
@@ -293,6 +332,7 @@ class workflow(object):
         plot_res = self.get_param('segmentation', 'plot_result')
         save_name = self.get_param('segmentation', 'save_name')
         ROI = self.get_param('segmentation', 'ROI')
+        single_img_name = self.get_param('segmentation', 'single_image_name')
         
         
         # reading preprepared mask
@@ -303,7 +343,10 @@ class workflow(object):
         allfiles = os.listdir(dirname)
         n_ext = len(ext)
         image_files = sorted(list(filter(lambda s: s[-n_ext:]==ext, allfiles)))
-        image0 = imread(os.path.join(dirname,image_files[0]))
+        if single_img_name in image_files:
+            image0 = imread(os.path.join(dirname,single_img_name))
+        else:
+            image0 = imread(os.path.join(dirname,image_files[0]))
         
         # preparing a mask using the given ROI
         if ROI is not None:
@@ -311,7 +354,6 @@ class workflow(object):
             mask_ROI = zeros(image0.shape)
             mask_ROI[ROI[2]:ROI[3]+1, ROI[0]:ROI[1]+1] = 1
             mask = mask * mask_ROI
-        
         
         # segmenting the image if there are more than 1 frames
         if N_img is None or N_img>1:
@@ -340,10 +382,15 @@ class workflow(object):
             print('Done.')
         
         
-        # segmenting the image if is only 1 frames
+        # segmenting the image if there is only 1 frames
         if N_img == 1:
-            print('starting segmentation on a single image.')
-            print(os.path.join(dirname,image_files[0]))
+            print('\n','starting segmentation on a single image.')
+            if single_img_name not in image_files:
+                in_ = os.path.join(dirname,single_img_name)
+                msg = 'Image %s not found in the directory.'%in_
+                raise ValueError(msg)
+            
+            print('\n','segmenting image: %s'%single_img_name)
             particleSegment = particle_segmentation(image0, 
                                                     sigma=sigma, 
                                                     threshold=threshold, 
@@ -560,7 +607,7 @@ class workflow(object):
         print('\n', 'Done.')
         
         
-        
+#%%
         
         
         

@@ -9,6 +9,7 @@
 - segmentation:
     Number_of_images: 1
     images_folder: 'Calibration'
+    single_image_name: cal2.tif
     image_extension: '.tif'
     mask: 1.0
     ROI: 227, 1050, 156, 932
