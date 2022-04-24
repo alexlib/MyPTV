@@ -91,7 +91,7 @@
 \subsection{3D-PTV principles}
 
 
-The 3D-PTV method is used to measure the trajectories of particles in 3D space. utilize sites the principles of stereoscopic vision to reconstruct 3D positions of particles from images taken from several angles. A scheme of a typical 3D-PTV experiment using a four-camera system is shown in Fig.~\ref{fig:3dptv_exp}. The "workhorse" behind the 3D-PTV method is the co-linearity condition, the 3D model. In principle, if we know what the position is and what is the orientation of the camera in 3D space ($O'$ and $\theta$ in Fig.~\ref{fig:3dmodel}), we can use the pin-hole camera model to relate the image space coordinates of a particle ($\eta,\, \zeta$ in Fig.~\ref{fig:3dmodel}) to the ray of light connecting the imaging center and the particle. Then, if we have more than one camera, the particle will be located at the intersection of the two rays. Detailed information is given in \cite{Virant1997, Mass1993}.  
+The 3D-PTV method is used to measure trajectories of particles in 3D space. It utilities the principles of stereoscopic vision in order to reconstruct 3D positions of particles from images taken from several angles. A scheme of a typical 3D-PTV experiment using a four camera system is shown in Fig.~\ref{fig:3dptv_exp}. The "work horse" behind the 3D-PTV method is the co-linearity condition, the 3D model. In principle, if we know what is the position and what is the orientation of the camera in 3D space ($O'$ and $\theta$ in Fig.~\ref{fig:3dmodel}), we can use the pin-hole camera model to relate the image space coordinates of a particle ($\eta,\, \zeta$ in Fig.~\ref{fig:3dmodel}) to the ray of light connecting the imaging center and the particle. Then, if we have more than one camera, the particle will be located at the intersection of the two rays. Detailed information is given in \cite{Virant1997, Mass1993}.  
 
 
 \begin{figure}[h!]
@@ -108,7 +108,7 @@ The 3D-PTV method is used to measure the trajectories of particles in 3D space. 
 
 
 
-Once the experiment, namely data acquisition, is done, there are six intrinsic steps to follow to complete the analysis. The six steps are outlined in Fig.~\ref{fig:steps}. In Camera calibration, we use images of known calibration targets to estimate the position, cameras' position, orientation, and internal parameters. scale  segments. image ,analysis to obtain the particles' image space coordinates ($\eta, \, \zeta$). In the Particle matching step we us e the r,ay crossing principle to decide which particle image in each of the corresponding physical particle triangulate their positions through stereo matching. In particle, tracking e connect ,the positions of particles in 3D space to form trajectories. In data conditioning we might use smoothing and re-tracking algorithms to enhance the quality of our data according to some physical heuristics. Lastly, we can analyze the data to obtain information on the physics of the particles we are studying. The MyPTV package is meant to handle the first five of these steps.    
+Once the experiment, namely data acquisition, is done, there are six intrinsic steps to follow in order to complete the analysis. The six steps are outlined in Fig.~\ref{fig:steps}. In Camera calibration, we use images of known calibration targets to estimate the position, orientation and internal parameters of the cameras. In particle segmentation we use image analysis to obtain the particles' image space coordinates ($\eta, \, \zeta$). In the Particle matching step we use the ray crossing principle to decide which particle image in each of the cameras correspond to the same physical particle, and triangulate their positions through stereo matching. In particle tracking we connect the positions of particles in 3D space to form trajectories. In data conditioning we might use smoothing and re-tracking algorithms to enhance the quality of our data according to some physical heuristics. Lastly, we can analyze the data to obtain information on the physics of the particles we are studying. The MyPTV package is meant to handle the first five of these steps.    
 
 
 
@@ -281,7 +281,7 @@ Camera calibration consists of several steps in which we determine the external 
 Importantly, since the goal is finding the cameras' positions, once a calibration image was taken in an experiment it is critical that the cameras are not moved. Also, the calibration target needs to be in the same medium in which the experiment will be performed to ensure that any refraction is corrected by the error terms (e.g. if you are using a tank of water, place the calibration target inside the tank of water). 
 
 
-A schematic block diagram for the calibration process of each camera is given in Fig.~\ref{fig:calibsteps}. The calibration is divided into two sub-processes: 1) initial calibration, in which we use only 6 calibration points to obtain an approximate calibration estimation, and, 2) final calibration, in which we use all the calibration points on the calibration target to improve the accuracy of the initial calibration. The various steps of the process are performed in MyPTV through the workflow script, and detailed instructions are given below. 
+A schematic block diageam for the calibration process of each camera is given in Fig.~\ref{fig:calibsteps}. The calibration is divided into two sub-processes: 1) initial calibration, in which we use only 6 calibration points to obtain an approximate calibration estimation, and, 2) final calibration, in which we use all the calibration points on the calibration target to improve the accuracy of the initial calibration. The various steps of the process are performed in MyPTV through the workflow script, and detailed instructions are given below. 
 
 
 \begin{figure}
@@ -330,12 +330,12 @@ As in any step of MyPTV, we first make sure that the \texttt{params\_file.yaml} 
 For the initial calibration, follow these steps:
 
 \begin{enumerate}
-	\item \textit{Generate a camera file:} The camera file holds the camera parameters (see Fig.~\ref{fig:camfiles}). An empty camera file can be generated automatically by the workflow script when we start the calibration sequence in a directory that doesn't have a camera file in it (by running \texttt{python workflow.py params\_file.yml calibration} in the command line).
+	\item \textit{Generate a camer file:} The camera file holds the camera parameters (see Fig.~\ref{fig:camfiles}). An empty camera file can be generated automatically by the workflow script when we start the calibration squence in a directory that doesn't havea  camera file in it (by running \texttt{python workflow.py params\_file.yml calibration} in the command line).
 	
-	\item \textit{Enter an initial guess:} Open the camera file just generated and insert an initial guess for the camera's position ($\vec{O}$ in the first line, and $\vec{\theta}$ in the second line). See Fig.~\ref{fig:cam_pos_example} for a reference on how camera translations and orientations work. 
+	\item \textit{Enter an initial guess:} Open the camera file just gnerated and insert an initial guess for the camrea's position ($\vec{O}$ in the first line, and $\vec{\theta}$ in the second line). See Fig.~\ref{fig:cam_pos_example} for a reference on how camera translations and orientations work. 
 	
-	\item \textit{Segment 6 calibration points:} Choose six points of the calibration target and prepare a file that lets MyPTV know their coordinates in image space and in lab space (see Fig.~\ref{fig:calpointfile} for the format). The name of the file should be inserted under \texttt{calibration\_points\_file} in the \texttt{params\_file.yml}. \\
-	The calibration points file can be generated easily using a dedicated user interface (GUI). To run the GUI, enter \texttt{python workflow.py params\_file calibration\_point\_gui} in the command line. Alternatively, if MyPTV can't find the \texttt{calibration\_points\_file}, the GUI will start automatically. Instruction are given in Fig.~\ref{fig:Cal_point_GUI}. Note, for best performance, it is best to have some asymmetry in the points chosen (e.g. see the blue crosses in Fig.~\ref{fig:Cal_point_GUI}).
+	\item \textit{Segment 6 calibration points:} Choose six points of the calibration target and prepare a file that lets MyPTV know their coordiantes in image space and in lab space (see Fig.~\ref{fig:calpointfile} for the format). The name of the file should be inserted under \texttt{calibration\_points\_file} in the \texttt{params\_file.yml}. \\
+	The calibration points file can be generated easilly using a dedicated user interface (GUI). To run the GUI, enter \texttt{python workflow.py params\_file calibration\_point\_gui} in the command line. Alternatively, if MyPTV can't find the \texttt{calibration\_points\_file}, the GUI will start automatically. Instruction are given in Fig.~\ref{fig:Cal_point_GUI}. Note, for best performance, it is best to have some asymmetry in the points chosen (e.g. see the blue crosses in Fig.~\ref{fig:Cal_point_GUI}).
 	
 	\item \textit{Calibrate using 6 points:} We now calibrate the camera (i.e. improve the initial guess), using the calibration sequence. To start the sequence enter \texttt{python workflow.py params\_file.yml calibration} in the command line. Then, the following actions can be chosen by the user:
 	\begin{verbatim}
@@ -1004,7 +1004,7 @@ This is the module that is used to track particles in 3D. There are currently th
 
 \subsection{The \texttt{tracker\_four\_frames} object}\label{sec:four_frames}
 
-An object used to perform tracking through the 4-frame best estimate method \cite{Ouellette2006}. Input:
+An object used to perform tracking through the 4-frame best estimate method~\cite{Ouellette2006}. Input:
 %
 \begin{enumerate}
 	\item \texttt{fname} - a string name of a particle file (e.g. Fig.~\ref{fig:particlefile}
@@ -1109,7 +1109,7 @@ This object performs the stitching process. Inputs:
 
 
 
-The important functionality is:
+The important functionalities are:
 
 \begin{enumerate}
 	\item \texttt{stitch\_trajectories()} - Will search for candidates and stitch the best fitting candidates. Run this function to perform the stitching. After running the new trajectory list is held as the attribute \texttt{new\_traj\_list}.
