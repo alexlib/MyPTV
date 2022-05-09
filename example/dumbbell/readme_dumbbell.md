@@ -31,7 +31,8 @@ Somehow, an object with two well visible points has to be moved through the obse
 
 Note that the accuracy by which these dumbbell points can be determined in 2d, also defines the possible accuracy in 3d.
 
-https://openptv-python.readthedocs.io/en/latest/_images/fig10.png
+![image](https://openptv-python.readthedocs.io/en/latest/_images/fig10.png)
+
 
 
 ## How it should work
