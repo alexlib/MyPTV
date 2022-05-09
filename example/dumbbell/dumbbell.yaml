@@ -1,0 +1,28 @@
+- segmentation:
+    Number_of_images: 1
+    images_folder: images
+    single_image_name: dumbbell_cam1.tif
+    image_extension: .tif
+    mask: 1.0
+    ROI: 227, 1050, 156, 932
+    plot_result: True
+    threshold: 14.0
+    blur_sigma: 0.4 
+    local_filter: 20
+    min_xsize: 10.0
+    min_ysize: 10.0
+    min_area: 50.0
+    max_xsize: 50.0
+    max_ysize: 50.0
+    max_area: 1000.0
+    save_name: dumbbell_points
+
+- dumbbell:
+  dumbbell_length: 3 # mm
+  dumbbell_epipolar_distance: 0.1 # mm
+  number_of_images: 500
+  segmented_points_file: dumbbell_points
+  resolution: 1280, 1024
+  calibration_files: cam1, cam2, cam3, cam4 # i think camera_name is less clear 
+  # openptv also asks for optimisation parameters, 
+  # we can probably skip it here
