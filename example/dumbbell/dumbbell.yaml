@@ -1,6 +1,6 @@
 - segmentation:
     Number_of_images: 1
-    images_folder: images
+    images_folder: images/
     single_image_name: dumbbell_cam1.tif
     image_extension: .tif
     mask: 1.0
@@ -15,13 +15,25 @@
     max_xsize: 50.0
     max_ysize: 50.0
     max_area: 1000.0
-    save_name: dumbbell_points
+    save_name: dumbbell_cam1
+
+- matching:
+    blob_files: dumbbell_cam1, dumbbell_cam2, dumbbell_cam3, dumbbell_cam4
+    N_frames: 500
+    camera_names: cam1, cam2, cam3, cam4
+    cam_resolution: 1280, 1024
+    ROI: 0.0, 70.0, 0.0, 70.0, -25.0, 15.0
+    voxel_size: 10.0
+    max_blob_distance: 1.0
+    max_err: 0.25
+    save_name: dumbbell_3d_points
+
 
 - dumbbell:
   dumbbell_length: 3 # mm
   dumbbell_epipolar_distance: 0.1 # mm
   number_of_images: 500
-  segmented_points_file: dumbbell_points
+  segmented_points_file: dumbbell_3d_points
   resolution: 1280, 1024
   calibration_files: cam1, cam2, cam3, cam4 # i think camera_name is less clear 
   # openptv also asks for optimisation parameters, 

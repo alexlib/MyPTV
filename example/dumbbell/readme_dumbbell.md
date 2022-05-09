@@ -47,10 +47,21 @@ the single camera calibration approach.
 
 ### Example in PBI
 
-1. segmentation is a bit different if we want 
+1. segmentation process can be a bit different if we want 
 to have only the pair of points, we can use
 template matching of a manually selected dumbbell shape:
 https://github.com/yosefm/pbi/blob/master/ptv/dumbbell.py
 
+- on the other hand, in openptv, the segmentation of dumbbells was done by the same method as tracers, only different parameters. we only want to be sure that we have only the two correct points.
+
 2. Calibration file correction: 
 https://github.com/yosefm/pbi/blob/master/ptv/dumbbell_correct.py
+
+
+### dumbbell segmentation results
+
+the simplest version would be that each row is a single frame result with two 3D positions
+
+    frame x1 y1 z1 x2 y2 z2
+
+so we need probably first to store the segmentation per camera, as we do in segmentation, then we do matching and convert it to 3D 
