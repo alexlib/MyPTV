@@ -194,7 +194,7 @@ class calibrate(object):
 class calibrate_with_particles(object):
     '''
     A class used to refine the calibration using particles data. In short,
-    after the primary clibration is done, matching and tracking can be used
+    after the primary calibration is done, matching and tracking can be used
     to obtain trajectories from the experimental data. Here, we can leverage
     the trajectories obtained to minimize further the calibration error.
     The assumption is that longer trajectories are considered more reliable 
@@ -298,5 +298,85 @@ class calibrate_with_particles(object):
                              [p[1] for p in self.cal_points])
         return self.cal
         
+
+
+
+class calibrate_with_dumbbell(object):
+    '''
+    A class used to refine the calibration using dumbbell or wand objects. 
+    
+    Requires a very good initial guess, better if this step is performed after
+    a regular 3D target calibration. 
+
+    This method minimizes the error related to the length of a fixed rod connecting
+    two known points in 3D, the object looks like a dumbbell: 0------0 
+
+    '''
+    
+    def __init__(self, 
+                dumbbell_2d_points, 
+                camera_calibration, 
+                dumbbell_length = 15, 
+                epipolar_tolerance = 1):
+        '''
+        input -
         
+        dumbbell_2d_points - the name of the files containing the 2d positions of the dumbbell.
         
+        camera_calibration - an instance of the camera we wish to try and re-calibrate
+        
+        dumbbell_length - length between the two points in millimeters
+
+        epipolar_tolerance - tolerance to position the dumbbell points in 3D, in millimeters
+
+        '''
+        
+        self.dumbbell_2d_points = dumbbell_2d_points
+        self.camera = camera_calibration
+        self.cam_number = cam_number
+        self.dumbbell_length = dumbbell_length
+        self.epipolar_tolerance = epipolar_tolerance
+
+        
+        # gathering points from trajectory file and matching them to blobs
+        self.fetch_points() # get 2d points from the files
+        self.estimate_length() # triangulate and estimate length in all frames
+        self.calibrate() # shake the calibration parameters to minimize the length error
+
+    def fetch_points():
+        """
+            Read 2D points of dumbbell in N cameras
+        """
+        pass
+
+    def estimate_length():
+        """
+            Triangulate
+            Estimate length
+        """
+
+        # triangulate 
+
+        # estimate length
+
+        pass
+
+    def calibrate():
+        """
+            Calibrate by minimizing the mean square error and shaking external calibration 
+            parameters.
+        """
+
+        pass
+
+    def fineCalibration():
+        """
+            fine calibration with dumbbell of internal calibration parameters
+        """
+
+    def mean_squared_err():
+        """ 
+            estimate mean square error
+
+        """
+        pass

@@ -68,6 +68,9 @@ class workflow(object):
                 
             elif action == 'calibration_with_particles':
                 self.calibration_with_particles()
+
+            elif action == 'calibration_with_dumbbell':
+                self.calibration_with_dumbbell()
             
             elif action == 'match_target_file':
                 self.match_target_file()
@@ -384,7 +387,84 @@ class workflow(object):
                 print('\n', 'Saving results')
                 cam.save('.')
         
-    
+    def calibration_with_dumbbell(self):
+        '''
+        This starts the calibrate with dumbbell
+        '''
+        from myptv.imaging_mod import camera
+        from myptv.calibrate_mod import calibrate_with_dumbbell
+        from  matplotlib.pyplot import subplots, show
+        
+        # fetch parameters from the file:
+        # 1. segmentation - create 2d points per camera
+        # 2. matching - create 3d points
+        # 3. calibrate
+
+
+
+        camera_name =  self.get_param('dumbbell',
+                                      'camera_name')
+        resolution = self.get_param('calibration_with_dumbbell',
+                             'resolution').split(',')
+        resolution = (float(resolution[0]), float(resolution[1]))
+        traj_filename = self.get_param('calibration_with_dumbbell',
+                                      'traj_filename')
+
+        print('\n', 'starting calibration with dumbbell')
+        
+        # setting up a camera instance            
+        cam = camera(camera_name, resolution)
+        cam.load('./')
+        
+
+        
+        # set up the calibration object
+        cal_with_dumbbell = calibrate_with_dumbbell(dumbbell_2d_points,
+                                            camera_calibration,
+                                            dumbbell_length
+                                            epipolar_tolerance)
+        
+        points = cal_with_dumbbell.fetch_points()
+        lengths = cal_with_dumbbell.estimate_length()
+        
+
+        print('\n', 'ready to calibrate')
+        print('initial error: %.3f pixels'%(cal.mean_squared_err()))
+        print('')
+        
+        user = True
+        print('Starting calibration sequence:')
+        while user != '9':
+            print("enter '1' for external parameters calibration")
+            print("enter '2' for internal correction ('fine') calibration")
+            print("enter '3' to show current camera external parameters")
+            print("enter '4' to plot the calibration points' projection")
+            print("enter '8' to save the results")
+            print("enter '9' to quit")
+            user = input('')
+            
+            if user == '1':
+                print('\n', 'Iterating to minimize external parameters')
+                cal = cal_with_dumbbell.calibrate()
+                err = cal.mean_squared_err()
+                print('\n','calibration error: %.3f pixels'%(err),'\n')
+            
+            if user == '2':
+                print('\n', 'Iterating to minimize correction terms')
+                cal = cal_with_dumbbell.fineCalibration()
+                err = cal.mean_squared_err()
+                print('\n','calibration error:', err,'\n')
+                
+            if user == '3':
+                print('\n', cam, '\n')
+            
+            if user == '4':
+                fig, ax = subplots()
+                cal.plot_proj(ax=ax)
+                show()
+            if user == '8':
+                print('\n', 'Saving results')
+                cam.save('.')    
     
     def do_segmentation(self):
         '''
