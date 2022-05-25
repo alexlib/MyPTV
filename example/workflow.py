@@ -51,6 +51,7 @@ class workflow(object):
         elif action != None:
             
             allowed_actions = ['calibration', 'calibration_point_gui', 
+                               'calibration_with_particles',
                               'match_target_file', 'segmentation', 'matching',
                               'tracking', 'smoothing', 'stitching']
             
@@ -64,6 +65,9 @@ class workflow(object):
             
             elif action == 'calibration_point_gui':
                 self.calibration_point_gui()
+                
+            elif action == 'calibration_with_particles':
+                self.calibration_with_particles()
             
             elif action == 'match_target_file':
                 self.match_target_file()
@@ -304,6 +308,84 @@ class workflow(object):
     
     
     
+    def calibration_with_particles(self):
+        '''
+        This starts the calibrate with particles sequence
+        '''
+        from myptv.imaging_mod import camera
+        from myptv.calibrate_mod import calibrate_with_particles
+        from  matplotlib.pyplot import subplots, show
+        
+        # fetch parameters from the file
+        camera_name =  self.get_param('calibration_with_particles',
+                                      'camera_name')
+        resolution = self.get_param('calibration_with_particles',
+                             'resolution').split(',')
+        resolution = (float(resolution[0]), float(resolution[1]))
+        traj_filename = self.get_param('calibration_with_particles',
+                                      'traj_filename')
+        cam_number = self.get_param('calibration_with_particles',
+                                      'cam_number') 
+        blobs_fname = self.get_param('calibration_with_particles',
+                                      'blobs_fname')
+        min_traj_len = self.get_param('calibration_with_particles',
+                                      'min_traj_len')
+        max_point_number = self.get_param('calibration_with_particles',
+                                      'max_point_number')
+        print('\n', 'starting calibration with particles')
+        
+        # setting up a camera instance            
+        cam = camera(camera_name, resolution)
+        cam.load('./')
+        
+        
+        # set up the calibration object
+        cal_with_p = calibrate_with_particles(traj_filename, cam, cam_number, 
+                                      blobs_fname, min_traj_len=min_traj_len,
+                                      max_point_number=max_point_number)
+        
+        
+        cal = cal_with_p.get_calibrate_instance()
+        print('\n', 'ready to calibrate')
+        print('initial error: %.3f pixels'%(cal.mean_squared_err()))
+        print('')
+        
+        user = True
+        print('Starting calibration sequence:')
+        while user != '9':
+            print("enter '1' for external parameters calibration")
+            print("enter '2' for internal correction ('fine') calibration")
+            print("enter '3' to show current camera external parameters")
+            print("enter '4' to plot the calibration points' projection")
+            print("enter '8' to save the results")
+            print("enter '9' to quit")
+            user = input('')
+            
+            if user == '1':
+                print('\n', 'Iterating to minimize external parameters')
+                cal.searchCalibration(maxiter=2000)
+                err = cal.mean_squared_err()
+                print('\n','calibration error: %.3f pixels'%(err),'\n')
+            
+            if user == '2':
+                print('\n', 'Iterating to minimize correction terms')
+                cal.fineCalibration()
+                err = cal.mean_squared_err()
+                print('\n','calibration error:', err,'\n')
+                
+            if user == '3':
+                print('\n', cam, '\n')
+            
+            if user == '4':
+                fig, ax = subplots()
+                cal.plot_proj(ax=ax)
+                show()
+            if user == '8':
+                print('\n', 'Saving results')
+                cam.save('.')
+        
+    
+    
     def do_segmentation(self):
         '''
         Will perform segmentation on the images given in the parameters file
@@ -321,23 +403,31 @@ class workflow(object):
         N_img = self.get_param('segmentation', 'Number_of_images')
         sigma = self.get_param('segmentation', 'blur_sigma')
         threshold = self.get_param('segmentation', 'threshold')
+        median = self.get_param('segmentation', 'median')
         local_filter = self.get_param('segmentation', 'local_filter')
         max_xsize = self.get_param('segmentation', 'max_xsize')
         max_ysize = self.get_param('segmentation', 'max_ysize')
-        max_area = self.get_param('segmentation', 'max_area')
+        max_mass = self.get_param('segmentation', 'max_mass')
         min_xsize = self.get_param('segmentation', 'min_xsize')
         min_ysize = self.get_param('segmentation', 'min_ysize')
-        min_area = self.get_param('segmentation', 'min_area')
+        min_mass = self.get_param('segmentation', 'min_mass')
         mask = self.get_param('segmentation', 'mask')
         plot_res = self.get_param('segmentation', 'plot_result')
         save_name = self.get_param('segmentation', 'save_name')
         ROI = self.get_param('segmentation', 'ROI')
         single_img_name = self.get_param('segmentation', 'single_image_name')
-        
+        method = self.get_param('segmentation', 'method')
+        p_size = self.get_param('segmentation', 'particle_size')
         
         # reading preprepared mask
         if type(mask)==str:
             mask = imread(mask)
+        
+        if method not in ['dilation', 'labeling']:
+            raise ValueError('Method can be only "dilation" or "labeling"')
+        
+        if method=='dilation' and type(particle_size) != int:
+            raise ValueError('In dilation, particle_size can only be integer')
         
         # get the shape of the images
         allfiles = os.listdir(dirname)
@@ -358,18 +448,21 @@ class workflow(object):
         # segmenting the image if there are more than 1 frames
         if N_img is None or N_img>1:
             loopSegment = loop_segmentation(dirname, 
+                                            particle_size=p_size,
                                             extension=ext,
                                             N_img=N_img, 
                                             sigma=sigma, 
+                                            median=median,
                                             threshold=threshold, 
                                             local_filter=local_filter, 
                                             max_xsize=max_xsize, 
                                             max_ysize=max_ysize,
-                                            max_area=max_area,
+                                            max_mass=max_mass,
                                             min_xsize=min_xsize, 
                                             min_ysize=min_ysize,
-                                            min_area=min_area,
-                                            mask=mask)
+                                            min_mass=min_mass,
+                                            mask=mask,
+                                            method=method)
         
             loopSegment.segment_folder_images()
             
@@ -392,16 +485,19 @@ class workflow(object):
             
             print('\n','segmenting image: %s'%single_img_name)
             particleSegment = particle_segmentation(image0, 
+                                                    particle_size=p_size,
                                                     sigma=sigma, 
+                                                    median=median,
                                                     threshold=threshold, 
                                                     local_filter=local_filter, 
                                                     max_xsize=max_xsize, 
                                                     max_ysize=max_ysize,
-                                                    max_area=max_area,
+                                                    max_mass=max_mass,
                                                     min_xsize=min_xsize, 
                                                     min_ysize=min_ysize,
-                                                    min_area=min_area,
-                                                    mask=mask)
+                                                    min_mass=min_mass,
+                                                    mask=mask,
+                                                    method=method)
             particleSegment.get_blobs()
             particleSegment.apply_blobs_size_filter()
             

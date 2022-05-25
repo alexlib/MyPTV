@@ -1,29 +1,32 @@
 - calibration:
-    camera_name: Calibration/cam1.ori
-    calibration_points_file: Calibration/cal_points1.csv
-    target_file: Calibration/target_file.csv
-    segmented_points_file: Calibration/cam1_blobs.csv
-    calibration_image: Calibration/cal1.tif
+    camera_name: cam1
+    calibration_points_file: ./Calibration/cal_points1_full
+    target_file: ./Calibration/target_file
+    segmented_points_file: ./Calibration/cal_blobs_1
+    calibration_image: ./Calibration/cal1.tif
     resolution: 1280, 1024
 
 - segmentation:
     Number_of_images: 1
-    images_folder: 'Calibration'
+    images_folder: Calibration
     single_image_name: cal2.tif
     image_extension: '.tif'
     mask: 1.0
-    ROI: 227, 1050, 156, 932
+    ROI: 227, 1050, 120, 920
     plot_result: True
-    threshold: 14.0
-    blur_sigma: 0.4 
-    local_filter: 20
-    min_xsize: 3.0
-    min_ysize: 3.0
-    min_area: 3.0
-    max_xsize: 10.0
-    max_ysize: 10.0
-    max_area: 20.0
-    save_name: Calibration/cam1_blobs.csv
+    threshold: 42
+    median: 5
+    blur_sigma: None
+    local_filter: None
+    min_xsize: 1.0
+    min_ysize: 1.0
+    min_mass: 60.0
+    max_xsize: 15.0
+    max_ysize: 15.0
+    max_mass: None
+    method: labeling
+    particle_size: 8
+    save_name: None
 
 - matching:
     blob_files: blobs_cam1, blobs_cam2, blobs_cam3
@@ -33,7 +36,7 @@
     ROI: 0.0, 70.0, 0.0, 70.0, -25.0, 15.0
     voxel_size: 10.0
     max_blob_distance: 1.0
-    max_err: 0.2
+    max_err: 0.25
     save_name: particles
 
 - tracking:
@@ -42,6 +45,15 @@
     d_max: 1.0
     dv_max: 1.0
     save_name: trajectories
+
+- calibration_with_particles:
+    camera_name: cam1
+    resolution: 1280, 1024
+    traj_filename: './trajectories'
+    cam_number: 1 
+    blobs_fname: 'blobs_cam1'
+    min_traj_len: 4
+    max_point_number: 200
 
 - smoothing:
     trajectory_file: trajectories

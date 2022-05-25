@@ -14,9 +14,13 @@
 %\usepackage{cite}
 \usepackage{array}
 \usepackage{natbib}
+\usepackage[caption=false]{subfig}
 
 
 \usepackage{xcolor}
+
+\definecolor{bcolor}{rgb}{0.95,0.95,1.0}
+
 \usepackage[caption=false]{subfig}
 \usepackage{caption}
 %\usepackage{orcidlink}
@@ -57,7 +61,7 @@
 
 \begin{minipage}{10cm}
 	{\small 
-	Vesrion: 0.2.2 \\
+	Vesrion: 0.4.1 \\
 	Last updated: \today \\
 	Github repository: \url{https://github.com/ronshnapp/MyPTV} \\
 	Contac: ronshnapp@gmail.com}
@@ -372,6 +376,22 @@ This concludes the initial calibration step.
 \end{figure}
 
 
+\begin{figure}[!ht]
+	\centering
+	%
+	\subfloat[]{ \label{fig:calpointfile}
+		\includegraphics[width=10cm]{cal_point_file.pdf}
+	}\\
+	%
+	\subfloat[]{\label{fig:target_file}
+		\includegraphics[width=9cm]{target_file.pdf}}
+	%
+	\subfloat[]{\label{fig:match_target_file}
+		\includegraphics[width=6.0cm]{match_target_file.jpeg}}
+	%
+	\caption{(a) Format of the target file, which lists the lab-space coordinates of the calibration target as tab-separated values. The order at which points are given is not relevant. (b) An example of a text file holding the calibration point data. (c) The results of matching a target file points (blue circles) and the segmented blobs (red crosses). Here, we know that the match is correct because each cross overlays a circle. In location where circles are not overlaid by a cross, the segmentation did not recognize a calibration target; having such missing points may slightly reduce the quality of the calibration but it is not critical for the target file matching.}
+\end{figure}
+
 
 
 \subsubsection{Final calibraiton}
@@ -401,27 +421,7 @@ For the final calibration, follow these steps:
 Congratulations, this step completes the calibration process. 
 
 
-\begin{figure}[!ht]
-	\centering
-	\includegraphics[width=10cm]{target_file.pdf}
-	\caption{Format of the target file, which lists the lab-space coordinates of the calibration target as tab-separated values. The order at which points are given is not relevant. \label{fig:target_file}}
-\end{figure}
 
-
-
-\begin{figure}
-	\centering
-	\includegraphics[width=10cm]{cal_point_file.pdf}
-	\caption{An example of a text file holding the calibration point data. \label{fig:calpointfile}}
-\end{figure}
-
-
-
-\begin{figure}
-	\centering
-	\includegraphics[width=8cm]{match_target_file.jpeg}
-	\caption{The results of matching a target file points (blue circles) and the segmented blobs (red crosses). Here, we know that the match is correct because each cross overlays a circle. In location where circles are not overlaid by a cross, the segmentation did not recognize a calibration target; having such missing points may slightly reduce the quality of the calibration but it is not critical for the target file matching. \label{fig:match_target_file}}
-\end{figure}
 
 
 
@@ -503,17 +503,16 @@ Congratulations, this step completes the calibration process.
 
 \begin{figure}
 	\centering
-	\includegraphics[width=6cm]{cal_image.jpg}
-	\caption{An example of a calibration image. The points on the target have known lab space coordinates. Not also that the points are distributed over several plains (3 different $z$ values in this case). \label{fig:cal_img}}
+	%
+	\subfloat[]{\label{fig:cal_img}
+		\includegraphics[height=6cm]{cal_image.jpg}}
+	\hfill
+	%
+	\subfloat[]{\label{fig:cal_err}
+		\includegraphics[height=6cm]{cal_error.pdf}}
+	%
+	\caption{(a) An example of a calibration image. The points on the target have known lab space coordinates. Not also that the points are distributed over several plains (3 different $z$ values in this case). (b) An example plot of a calibration error estimation. The red crosses represent the known positions of the calibration points given in the target file, and the black circles mark the positions of the stereo-matched segmented calibration points. In this case, the root mean square of the static calibration error was 84$\mu m$.}
 \end{figure}
-
-
-\begin{figure}
-	\centering
-	\includegraphics[width=6cm]{cal_error.pdf}
-	\caption{An example plot of a calibration error estimation. The red crosses represent the known positions of the calibration points given in the target file, and the black circles mark the positions of the stereo-matched segmented calibration points. In this case, the root mean square of the static calibration error was 84$\mu m$. \label{fig:cal_err}}
-\end{figure}
-
 
 
 
@@ -522,18 +521,57 @@ Congratulations, this step completes the calibration process.
 \subsection{Segmentation}\label{sec:workflow_segment}
 
 
-In this step we extract the particles' image-space coordinates in the images and save the coordinates in dedicated files. Use the \texttt{workflow.py} script with the \texttt{segmentation} command to start the process. 
+In this step we extract the particles' image-space coordinates from the images and save the coordinates in dedicated files. Use the \texttt{workflow.py} script with the \texttt{segmentation} command to start the process:
 
 \begin{enumerate}
-	\item We perform the segmentation first on a single image by specifying \texttt{Number\_of\_images: 1}, and giving an image name with \texttt{single\_image\_name}. We then tune the segmentation parameters (e.g. \texttt{ROI}, \texttt{threshold}, \texttt{blur\_sigma}, etc.) to obtain optimal results (optionally repeat over several more images to ensure the results are satisfactory). To view the results, use \texttt{plot\_result: True}, and make sure the results are not saved by using \texttt{save\_name: None}. 
+	\item We perform the segmentation first on a single image by specifying \texttt{Number\_of\_images: 1}, and giving an image name with \texttt{single\_image\_name}. We then tune the segmentation parameters and the image processing filters used (e.g. \texttt{ROI}, \texttt{threshold}, \texttt{blur\_sigma}, \texttt{method} etc; the full list is given in Table~\ref{tab:segment_params}) to obtain optimal results; optionally repeat over several more images to ensure the results are satisfactory. To view the segmented particles over the image, use \texttt{plot\_result: True}, and make sure the results are not saved by using \texttt{save\_name: None}. 
 	
 	\item Once the parameters are determined, we set \texttt{Number\_of\_images: None}, and run the segmentation workflow again. This will then loop over all the images in the given folder (under \texttt{images\_folder}), and save the results in a text file by setting \texttt{save\_name: /file/name/to/use}
 \end{enumerate}
 
 
+\vspace{.5cm}
+
+\begin{center}
+	
+\fcolorbox{white}{bcolor}{
+	\begin{minipage}[c][][c]{0.95\textwidth}
+		
+		\vspace{.1cm}
+		
+		\textbf{How segmentation works:} Segmentation in MyPTV is performed in one of two methods: \textit{labeling}, or \textit{dilation}, and includes several optional image processing steps. 
+		
+		\vspace{.2cm}
+		
+		\begin{enumerate}
+			\item In the labeling method, we first choose all pixels in an image whose grey value is higher than a given threshold. Then, such pixels that are touching each other are considered to be "blobs", so we group them together. For each blob, we calculate a \textit{center of mass}, being the grey value weighted average of the blob, a \textit{bounding box} size, and a \textit{mass}, being the sum of grey values of the blobs' pixels.
+			
+			\item In the dilation method, we are looking for pixels that their grey value is higher than that of all their neghbours within a box of a given size (\texttt{particle\_size}), and thet their grey value is higher than a given threshold. After that, all the neighbouring pixels inside the particle size box are considered to be a blob. We then calculate the center of mass of the blob to achieve a better estimation of its position, thus redifining the blob. This process is iterated a maxinum of 3 times untill convergence is obtained. Finally, we calculate the same blob's \textit{center of mass}, \textit{bounding box} size, \textit{mass}.
+		\end{enumerate}
+		
+		\vspace{.2cm}
+		
+		To imrove the results of segmenting over non-ideal images, MyPTV can be set to apply image processing before the blob extraction. The fiters that can be used are a gaussian blur filter, a median noise removal filter, local mean subtraction filter, and a mask. The first three filters may increase the computational time, however they may be necessary depending on the experimental conditions, such as uneven illumination or noisy images. Examples of the results of using several combinations of the filters on a calibration image is shown below. 
+		  
+		 \vspace{.2cm}
+		  
+	\begin{center}
+		\includegraphics[width=0.9\textwidth]{filters_effect.pdf}
+	\end{center}
+
+		 \vspace{.1cm}
+		  
+	\end{minipage}
+}
+
+\end{center}
+
+
+
+
 \begin{table}[!ht]
 	\centering
-	\caption{The \texttt{params\_file.yml} parameters for the segmentation step. All paths to files are relative to the \texttt{workflow.py} script.}
+	\caption{The \texttt{params\_file.yml} parameters for the segmentation step. All paths to files are relative to the \texttt{workflow.py} script. \label{tab:segment_params}}
 	\begin{tabular}{l m{10cm}}
 		\hline
 		Parameter & Description\\
@@ -557,24 +595,29 @@ In this step we extract the particles' image-space coordinates in the images and
 		
 		\texttt{threshold} & the brightness value for which a point is considered a particle after a local mean subtraction is performed \\[.3em]
 		
-		\texttt{blur\_sigma} & the standard deviation of a Gaussian blur filter \\[.3em]
+		\texttt{median} & the intger window size of a median noise removal filter; set to \texttt{None} in order to not apply the filter \\[.3em]
+		
+		\texttt{blur\_sigma} & the float standard deviation of a Gaussian blur filter; set to \texttt{None} in order to not apply the filter \\[.3em]
 		 
-		\texttt{local\_filter} & the size of a local mean subtraction filter \\[.3em]
+		\texttt{local\_filter} & the integer widow size of a local mean subtraction filter; set to \texttt{None} in order to not apply the filter \\[.3em]
 		
 		\texttt{min\_xsize} & minimum particle size (pixels) in $x$ direction \\[.3em]
 		
 		\texttt{min\_ysize} & minimum particle size (pixels) in $y$ direction \\[.3em]
 		
-		\texttt{min\_area} & minimum particle area (pixels$^2$)\\[.3em]
+		\texttt{min\_mass} & minimum particle mass (mass is the sum of pixel grey values)\\[.3em]
 		
 		\texttt{max\_xsize} & maximum particle size (pixels) in $x$ direction \\[.3em]
 		
 		\texttt{max\_ysize} & maximum particle size (pixels) in $y$ direction \\[.3em]
 		
-		\texttt{max\_area} & maximum particle area (pixels$^2$) \\[.3em]
+		\texttt{max\_mass} & maximum particle area (mass is the sum of pixel grey values) \\[.3em]
 
-		\texttt{plot\_result} & if \texttt{False} will not plot the results; if \texttt{True} the results will be plotted \\[.3em]
-
+		\texttt{plot\_result} & if \texttt{True} the segmented particles will be plotted over the processed image (after applying blur, local mean subtraction and masking); if \texttt{False} will not plot the results \\[.3em]
+		
+		\texttt{method} & ihe name of the method used for segmenting the blobs; can be either 'labeling' or 'dilation' \\
+		
+		\texttt{particle\_size} & in the 'dilation' method, this gives the diameter of blobs in the image (an integer number of pixels); this parameter is not used when method is set to 'labeling' \\
 		
 		\texttt{save\_name} & if \texttt{None} the results will not be saved in a file; if \texttt{path/to/file} will save the results in the given file name \\
 		
@@ -649,11 +692,50 @@ The tracking step is used to link particle in the lab space coordinates in time,
 		
 		\texttt{dv\_max} & the maximum allowable change in velocity in lab space coordinates per frame (e.g. mm/frame) \\
 		
-		\texttt{save\_name} & name of the file in which the results shall be saved; if \texttt{None} the results are not saved on the hard  \\
+		\texttt{save\_name} & name of the file in which the results shall be saved; if \texttt{None} the results are not saved on the drive\\
 		
 		\hline
 	\end{tabular}
 \end{table}
+
+
+
+
+
+\subsection{Calibration with particles}\label{sec:workflow_calibration_with_particles}
+
+After some trajectories have been obtained, we can refine the calibration of cameras by using this obtained data and re-run the calibration procedure with the measured particles. For more detailes see Sec.~\ref{sec:calibrate_with_particles_obj}. To start calibration with particles enter the command \texttt{calibration\_with\_particles} in the command line following the workflow command. Once this is done, a calibration sequence is initiated that uses the trajectory data.
+
+
+
+\begin{table}[!ht]
+	\centering
+	\caption{The \texttt{params\_file.yml} parameters for the calibration with particles step.}
+	\begin{tabular}{l m{10cm}}
+		\hline
+		Parameter & Description\\
+		\hline
+		
+		\texttt{traj\_filename} & the name of the file containing the trajectories from
+		which the calibration points are taken\\[.5em]
+		
+		\texttt{camera} & an instance of the camera we wish to try and re-calibrate\\[.5em]
+		
+		\texttt{cam\_number} & int, >= 1; the number (index) of the camera to be
+		calibrated. For example, to calibrate camera2, this should be set to 2\\[.5em]
+		
+		\texttt{blobs\_fname} & The name of the file that contains the segmented 
+		particles' data\\[.5em]
+		
+		\texttt{min\_traj\_len} & Only trajectories longer then this number will be used in the calibration\\[.5em]
+		
+		\texttt{max\_point\_number} & the maximum number of points that shall be taken to re-calibrate the camera. Note that too many points (say above 1000) might lead to long calculation times\\[.5em]
+		
+		\hline
+	\end{tabular}
+\end{table}
+
+
 
 
 
@@ -675,13 +757,13 @@ The smoothing step is used to smooth trajectories in time and to calculate the v
 		Parameter & Description\\
 		\hline
 		
-		\texttt{trajectory\_file} & file name of the trajectories file, namely the results of the tracking step \\
+		\texttt{trajectory\_file} & file name of the trajectories file, namely the results of the tracking step \\[.5em]
 		
-		\texttt{window\_size} & window size of the sliding polynomial \\
+		\texttt{window\_size} & window size of the sliding polynomial \\[.5em]
 		
-		\texttt{polynom\_order} & degree of the polynomial used in the smoothing \\
+		\texttt{polynom\_order} & degree of the polynomial used in the smoothing \\[.5em]
 		
-		\texttt{save\_name} & file name to save the results; if \texttt{None} the results will not be save on the disk \\
+		\texttt{save\_name} & file name to save the results; if \texttt{None} the results will not be save on the disk \\[.5em]
 		
 		\hline
 	\end{tabular}
@@ -815,11 +897,11 @@ The input for this class is:
 \section{Camera calibration - \texttt{calibrate\_mod.py}}
 
 
-The \texttt{calibrate\_mod.py} module, with the \texttt{calibrate} object, is used to find the camera calibration parameters. We calibrate each camera by taking an image of a \textit{calibration target} - a body with markings of known coordinates in lab space - and search for the camera parameters that minimize the distance between the projection of the known points in image space and the image taken with the camera. 
+The \texttt{calibrate\_mod.py} module, with the \texttt{calibrate} object, is used to find the camera calibration parameters. We calibrate each camera by taking an image of a \textit{calibration target} - a body with markings of known coordinates in lab space - and search for the camera parameters that minimize the distance between the projection of the known points in image space and the image taken with the camera. In addition to that, after a calibration is made and trajectories have been obtained, the calibration might be refined by using the \texttt{calibrate\_with\_particles} object; this is particularly helpfull in cases where some of the cameras slightly moved in between the taking the calibration images and the recording of the tracer particles.
 
 
 
-\subsection{The \texttt{calibrate} object}
+\subsection{The \texttt{calibrate} object}\label{sec:calibrate_obj}
 
 Used to solve for the camera parameters given an input list of image space and lab space coordinates. The inputs are:
 
@@ -849,6 +931,43 @@ To find an optimal calibration solution, we might need to run each function seve
 
 
 
+\subsection{The \texttt{calibrate\_with\_particles} object}\label{sec:calibrate_with_particles_obj}
+
+A class used to refine the calibration using particles data. In short,
+after the primary clibration is done, matching and tracking can be used
+to obtain trajectories from the experimental data. Assuming that this resulted in trajectories that were successfully measured, we can leverage
+the trajectories obtained to minimize further the calibration error. The refinement is done by assuming that the positions of particles along the resolved trajectories are "true" positions in lab-space, and thus, the blobs corresponding to these particles are used in a calibration sequence to minimize the calibration error. The assumption is that longer trajectories with low triangulation error are considered more reliable as compared to shorter trajectories, so we use only "long enough" trajectories 
+in this process.
+
+The inputs are:
+
+\begin{enumerate}
+	\item \texttt{traj\_filename} - the name of the file containing the trajectories from
+	which the calibration points are taken.
+	
+	\item \texttt{camera} - an instance of the camera we wish to try and re-calibrate
+	
+	\item \texttt{cam\_number} - int, >= 1; the number (index) of the camera to be
+	calibrated. For example, to calibrate camera2, this should be set to 2.
+	
+	\item \texttt{blobs\_fname} - The name of the file that contains the segmented 
+	particles' data.
+	
+	\item \texttt{min\_traj\_len} - Only trajectories longer then this number will be used in the calibration
+	
+	\item \texttt{max\_point\_number} - the maximum number of points that shall be taken
+	to re-calibrate the camera. Note that too many points (say above 1000) might lead to long calculation times. 
+\end{enumerate}
+
+
+The important functionalities are:
+
+\begin{enumerate}
+	
+	\item \texttt{get\_calibrate\_instance} - This function returns an instance of the \texttt{calibrate} object with the calibration points taken from the trajectory file. We then use this object to refine the calibration using the regular procedure (Sec.~\ref{sec:calibrate_obj}).
+
+\end{enumerate}
+
 
 
 
@@ -864,15 +983,18 @@ This module handles the image analysis part of MyPTV, taking in raw camera image
 
 \subsection{The \texttt{particle\_segmentation} object} 
 
-Used to segment particles in a given image. This class is used internally to iterate over frames in a single folder by the \texttt{loop\_segmentation} class. However, it is  to check the segmentation parameters manually using this \texttt{particle\_segmentation} over several images in order to tune the particle searching. The inputs are:
+Used to segment particles in a given image. This class is used internally to iterate over frames in a single folder by the \texttt{loop\_segmentation} class. However, it is recommended to check the segmentation parameters manually using this \texttt{particle\_segmentation} over several images in order to tune the particle searching parameters. The inputs are:
 %
 \begin{enumerate}
 	\item \texttt{image} - the image for segmentation
-	\item \texttt{sigma=1.0} - the standard deviation of the blurring filter
-	\item \texttt{threshold=10} - the global filter's threshold brightness value (pixels with brightness higher than this number are considered foreground) 
+	\item \texttt{threshold=10} - the global filter's threshold brightness value, so pixels with brightness higher than this number are considered foreground 
 	\item \texttt{mask=1.0} - A mask matrix can be used to specify rigions of interest within the image
-	\item \texttt{local\_filter=15} - The window size (pixels) for the local filter.
-	\item a bunch of threshold pixel sizes in all directions and in area.
+	\item \texttt{sigma=None} - If float, this is taken as the standard deviation of a Gaussian blurring filter; if it is None, no bluring is performed
+	\item \texttt{median=None} - If integer this is taken as the window size for a median noise removal filter; if None, no median filter is performed
+	\item \texttt{local\_filter=None} - Parameters for a local mean subtraction. If it's an interger it is taken as the window size; is it None, no mean subtraction is performed.
+	\item a bunch of threshold pixel sizes and mass in all directions and in area.
+	\item \texttt{method} - String. The name of the method used for segmentation (either 'labeling' or 'dilation', see Sec.~\ref{sec:workflow_segment}). Default is 'labeling'.
+	\item \texttt{particle\_size=3} - The particle size used in the dilation method.
 \end{enumerate}
 
 
@@ -894,8 +1016,7 @@ The important funcitonalities are:
 \subsection{The \texttt{loop\_segmentation} object} 
 
 
-An object used for looping over images in a given directory to segment particles
-and save the results in a file.
+An object used for looping over images in a given directory to segment particles and save the results in a file. The inputs are nearly identical to those of \texttt{particle\_segmentation}.
 
 
 important functionalities are:
@@ -960,7 +1081,7 @@ The important functionalities are:
 \begin{figure}[!ht]
 	\centering
 	\includegraphics[width=12cm]{particle_file.pdf}
-	\caption{An example of a text file holding the triangulated particles' resuls and the description of the different columns. In this example there were three cameras. \label{fig:particlefile}} 
+	\caption{An example of a text file holding the triangulated particles' resuls and the description of the different columns. In this example there were three cameras. The blob number columns give the index of the blobs corresponding to any particle at the this specific frame number; a value of -1 in one of the rows means that no blob was used to stereo-match the particle in this row for this particular camera. \label{fig:particlefile}} 
 \end{figure}
 
 
@@ -1028,7 +1149,7 @@ The important functionality is:
 \begin{figure}
 	\centering
 	\includegraphics[width=10cm]{trajectory_files.pdf}
-	\caption{Example of a trajectory file and the column definitions. \label{fig:trajfile}}
+	\caption{Example of a trajectory file and the column definitions. For Trajectory id being a non-negative integer, rows with the same Trajectory id correspond to the same trajectory; rows with Trajectory id being -1 are samples that could not be linked with the given tracking parameters.  \label{fig:trajfile}}
 \end{figure}
 
 
