@@ -401,6 +401,7 @@ class workflow(object):
         dirname = self.get_param('segmentation', 'images_folder')
         ext = self.get_param('segmentation', 'image_extension')
         N_img = self.get_param('segmentation', 'Number_of_images')
+        image_start = self.get_param('segmentation', 'image_start')
         sigma = self.get_param('segmentation', 'blur_sigma')
         threshold = self.get_param('segmentation', 'threshold')
         median = self.get_param('segmentation', 'median')
@@ -426,7 +427,7 @@ class workflow(object):
         if method not in ['dilation', 'labeling']:
             raise ValueError('Method can be only "dilation" or "labeling"')
         
-        if method=='dilation' and type(particle_size) != int:
+        if method=='dilation' and type(p_size) != int:
             raise ValueError('In dilation, particle_size can only be integer')
         
         # get the shape of the images
@@ -444,12 +445,13 @@ class workflow(object):
             mask_ROI = zeros(image0.shape)
             mask_ROI[ROI[2]:ROI[3]+1, ROI[0]:ROI[1]+1] = 1
             mask = mask * mask_ROI
-        
+
         # segmenting the image if there are more than 1 frames
         if N_img is None or N_img>1:
             loopSegment = loop_segmentation(dirname, 
                                             particle_size=p_size,
                                             extension=ext,
+                                            image_start=image_start,
                                             N_img=N_img, 
                                             sigma=sigma, 
                                             median=median,
@@ -536,6 +538,7 @@ class workflow(object):
         voxel_size = self.get_param('matching', 'voxel_size')
         max_blob_distance = self.get_param('matching', 'max_blob_distance')
         max_err = self.get_param('matching', 'max_err')
+        frame_start = self.get_param('matching', 'frame_start')
         N_frames = self.get_param('matching', 'N_frames')
         save_name = self.get_param('matching', 'save_name')
         
@@ -560,19 +563,30 @@ class workflow(object):
                                reverse_eta_zeta=True)
         
         # setting the frame range to match
+        ts = int(mbf.time_lst[0])
+        te = int(mbf.time_lst[-1])
+        print('semented particles time range: %d -> %d'%(ts,te),'\n')
+        
+        if frame_start is not None:
+            if frame_start>=ts and frame_start <=te:
+                ts = frame_start
+            else: 
+                raise ValueError('frame_start outside the available frame range')
+        
         if N_frames is None:
-            frames = None
+            frames = range(ts, te+1)
         else:
             try:
-                frames = range(N_frames)
+                frames = range(ts, ts+N_frames)
             except:
                 tp = type(frames)
-                msg = 'N_frames must be an integer of None (given %s).'%tp
+                msg = 'N_frames must be an integer or None (given %s).'%tp
                 raise TypeError(msg)
                 
                 
         # mathing
         print('Starting stereo-matching.')
+        print('Matching in the frame range: %d -> %d'%(frames[0], frames[-1]))
         mbf.get_particles(frames=frames)
         
         # print matching statistics
@@ -603,30 +617,42 @@ class workflow(object):
         
         # fetching parameters
         particles_fm = self.get_param('tracking', 'particles_file_name')
+        frame_start = self.get_param('tracking', 'frame_start')
         N_frames = self.get_param('tracking', 'N_frames')
         d_max = self.get_param('tracking', 'd_max')
         dv_max = self.get_param('tracking', 'dv_max')
         save_name = self.get_param('tracking', 'save_name')
         
         
-        
-        # setting the frame range to match
-        if N_frames is None:
-            frames = None
-        else:
-            try:
-                frames = range(N_frames)
-            except:
-                tp = type(frames)
-                msg = 'N_frames must be an integer of None (given %s).'%tp
-                raise TypeError(msg)
-        
-        
-        
-        # do the tracking
+        # initiate the tracker
         t4f = tracker_four_frames(particles_fm, 
                                   d_max=d_max, 
                                   dv_max=dv_max)
+        
+        #setting up the frame range
+        ts = int(t4f.times[0])
+        te = int(t4f.times[-1])
+        
+        print('available particles time range: %d -> %d'%(ts,te),'\n')
+        
+        if frame_start is not None:
+            if frame_start>=ts and frame_start <=te:
+                ts = frame_start
+            else: 
+                raise ValueError('frame_start outside the available frame range')
+        
+        if N_frames is None:
+            frames = range(ts, te)
+        else:
+            try:
+                frames = range(ts, ts+N_frames)
+            except:
+                tp = type(frames)
+                msg = 'N_frames must be an integer or None (given %s).'%tp
+                raise TypeError(msg)
+        
+        
+        # do the tracking
         t4f.track_all_frames(frames=frames)
         
         # print some statistics

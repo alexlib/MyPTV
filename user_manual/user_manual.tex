@@ -15,7 +15,8 @@
 \usepackage{array}
 \usepackage{natbib}
 \usepackage[caption=false]{subfig}
-
+\usepackage{titling}
+\usepackage{titlesec}
 
 \usepackage{xcolor}
 
@@ -32,14 +33,18 @@
 	linkcolor = blue
 }
 
-\title{MyPTV user manual}
-\author{Ron Shnapp}
+\title{\Huge \sffamily \textsc{\textbf{User Manual}}}
+\author{}%Ron Shnapp}
 \date{}
 
 
 
-
-
+\pretitle{%
+	\begin{center}
+		\LARGE
+		\includegraphics[width=8cm]{logo.png}\\[3cm]
+	}
+\posttitle{\end{center}}
 
 
 \begin{document}
@@ -47,11 +52,11 @@
 	
 
 
-
+	
 \maketitle
 
 \thispagestyle{empty}
-\vspace{3.5cm}
+\vspace{2.5cm}
 
 \begin{center}
 	\includegraphics[width=10cm]{traj_image.jpg}
@@ -59,12 +64,13 @@
 
 \vfill
 
-\begin{minipage}{10cm}
-	{\small 
-	Vesrion: 0.4.1 \\
+\begin{minipage}{14cm}
+	{\small \sffamily
+	Vesrion: 0.4.3 \\
 	Last updated: \today \\
 	Github repository: \url{https://github.com/ronshnapp/MyPTV} \\
-	Contac: ronshnapp@gmail.com}
+	Get help \& interact with our community: \url{https://github.com/ronshnapp/MyPTV/discussions}\\
+	Contact the developers: ronshnapp@gmail.com}
 \end{minipage}
 
 
@@ -96,7 +102,7 @@
 \subsection{3D-PTV principles}
 
 
-The 3D-PTV method is used to measure the trajectories of particles in 3D space. It utilizes the principles of stereoscopic vision to reconstruct 3D positions of particles from images taken from several angles. A scheme of a typical 3D-PTV experiment using a four camera system is shown in Fig.~\ref{fig:3dptv_exp}. The "work horse" behind the 3D-PTV method is the co-linearity condition, the 3D model. In principle, if we know what is the position and what is the orientation of the camera in 3D space ($O'$ and $\theta$ in Fig.~\ref{fig:3dmodel}), we can use the pin-hole camera model to relate the image space coordinates of a particle ($\eta,\, \zeta$ in Fig.~\ref{fig:3dmodel}) to the ray of light connecting the imaging center and the particle. Then, if we have more than one camera, the particle will be located at the intersection of the two rays. Detailed information is given in \cite{Virant1997, Maas1993}.  
+The 3D-PTV method is used to measure the trajectories of particles in 3D space. It utilizes the principles of stereoscopic vision to reconstruct 3D positions of particles from images taken from several angles. A scheme of a typical 3D-PTV experiment using a four-camera system is shown in Fig.~\ref{fig:3dptv_exp}. The "workhorse" behind the 3D-PTV method is the co-linearity condition, the 3D model. In principle, if we know what the position is and what is the orientation of the camera in 3D space ($O'$ and $\theta$ in Fig.~\ref{fig:3dmodel}), we can use the pin-hole camera model to relate the image space coordinates of a particle ($\eta,\, \zeta$ in Fig.~\ref{fig:3dmodel}) to the ray of light connecting the imaging center and the particle. Then, if we have more than one camera, the particle will be located at the intersection of the two rays. Detailed information is given in \cite{Virant1997, Maas1993}.  
 
 
 \begin{figure}[!ht]
@@ -113,7 +119,7 @@ The 3D-PTV method is used to measure the trajectories of particles in 3D space. 
 
 
 
-Once the experiment, namely data acquisition, is done, there are six intrinsic steps to follow in order to complete the analysis. The six steps are outlined in Fig.~\ref{fig:steps}. In Camera calibration, we use images of known calibration targets to estimate the position, orientation and internal parameters of the cameras. In particle segmentation we use image analysis to obtain the particles' image space coordinates ($\eta, \, \zeta$). In the Particle matching step we use the ray crossing principle to decide which particle image in each of the cameras correspond to the same physical particle, and triangulate their positions through stereo matching. In particle tracking we connect the positions of particles in 3D space to form trajectories. In data conditioning we might use smoothing and re-tracking algorithms to enhance the quality of our data according to some physical heuristics. Lastly, we can analyze the data to obtain information on the physics of the particles we are studying. The MyPTV package is meant to handle the first five of these steps.    
+Once the experiment, namely data acquisition, is done, there are six intrinsic steps to follow in order to complete the analysis. The six steps are outlined in Fig.~\ref{fig:steps}. In the camera calibration step, we use images of known calibration targets to estimate the position, orientation, and internal parameters of the cameras. In particle segmentation, we use image analysis to obtain the particles' image space coordinates ($\eta, \, \zeta$). In the Particle matching step, we use the ray crossing principle to decide which particle image in each camera corresponds to the same physical particle, and triangulate their positions through stereo matching. In particle tracking, we connect the positions of particles in 3D space to form trajectories. In data conditioning, we might use smoothing and re-tracking algorithms to enhance our data quality according to some physical heuristics. Lastly, we can analyze the data to obtain information on the physics of the particles we are studying. The MyPTV package is meant to handle the first five of these steps.    
 
 
 
@@ -133,7 +139,7 @@ The sections that follow outline the code used to handle the 3D-PTV method in My
 \subsection{3D model}
 
 
-To transform the 2D particles seen in camera images we use a pinhole camera model. In particular, the following expression relates the coordinates in the 2D image space coordinates and a direction vector pointing out from the camera imaging center:
+We use a pinhole camera model to transform the 2D particles seen in the camera images. In particular, the following expression relates the coordinates in the 2D image space coordinates and a direction vector pointing out from the camera imaging center:
 %
 \begin{equation}
 \vec{r}-\vec{O} = \Big( \, 
@@ -204,14 +210,13 @@ where $[E]$ is a $3\times5$ matrix that holds the correction coefficients; the l
 \subsection{MyPTV usage and structure}
 
 
-MyPTV is used to conduct the post processing steps in which the experimental raw data - images - are transformed into particles' trajectories. The five steps include camera calibration, image segmentation, particle matching, particle tracking, and, data conditioning which is divided into smoothing and stitching of broken trajectories. This section outlines how these steps are to be followed and how MyPTV is structured to facilitate them. Section~\ref{sec:workflow} gives instructions on how to efficiently use MyPTV. 
+MyPTV is used to conduct the post-processing steps in which the experimental raw data (images) are transformed into particles' trajectories. The five steps include camera calibration, image segmentation, particle matching, particle tracking, and, data conditioning which is divided into smoothing and stitching of broken trajectories. This section outlines how these steps are to be followed and how MyPTV is structured to facilitate them. Section~\ref{sec:workflow} gives instructions on how to efficiently use MyPTV. 
 
 
-At the current stage MyPTV does not include a graphical user interface. Instead, the package includes a script that can be used to efficiently and conveniently run the various steps in the post processing. Knowledge in Python is not required to operate MyPTV.
+At the current stage, MyPTV does not include a graphical user interface. Instead, the package includes a script that can be used to efficiently and conveniently run the various post-processing steps. Knowledge of Python is not required to operate MyPTV.
 
 
-
-Each of the steps described above is dealt with in MyPTV as a separate "module". Each module consists of a Python script file which includes one or several classes. Detailed information on each of these classes is given in Sections~\ref{sec:image_mod}--\ref{sec:stitching}, and the code itself includes documentation to a level appropriate for development. In addition to the source code, MyPTV includes a \textit{workflow} script that is used to operate the software in an organized fashion. Thus, MyPTV can either be used either by using the workflow script, or by directly evoking classes from the source code. 
+The internal structure of MyPTV is made of separate "modules", each of which deals with a particular step out of the list described above. Each module consists of a Python script file that includes one or several classes. Detailed information on each of these classes is given in Sections~\ref{sec:image_mod}--\ref{sec:stitching}, and the code itself includes documentation to a level appropriate for development. In addition to the source code, MyPTV includes a \textit{workflow} script that is used to operate the software in an organized fashion. Thus, MyPTV can be used either by using the workflow script or by directly evoking classes from the source code. 
 
 
 
@@ -226,7 +231,7 @@ Each of the steps described above is dealt with in MyPTV as a separate "module".
 \section{The Workflow}\label{sec:workflow}
 
 
-Operation of MyPTV can be facilitated using the \texttt{workflow.py} script. The script is found under the \textit{example} folder under the home directory of the MyPTV package. The workflow is used through command line given instructions and a file that outlines the parameters to be used in each step.
+MyPTV can be operated using the \texttt{workflow.py} script. The script is found under the \textit{example} folder under the home directory of the MyPTV package. The workflow is used through command line given instructions and a file that outlines the parameters to be used in each step.
 
 
 
@@ -239,7 +244,7 @@ To begin post processing of the 3D-PTV results, please follow these steps:
 \begin{enumerate}
 	\item Prepare a new directory; place inside of it the experiment data: the calibration images in a directory called \texttt{Calibration} and the particle images under separate folders named after the name of each camera.
 	\item Locate the \texttt{example} under the root folder of the MyPTV package. This can be used as a template to the experiment directory made in the previous step.
-	\item Copy the files \texttt{workfolw.py} and \texttt{params\_file.yml} from the \texttt{example} folder into your experiment's folder.
+	\item Copy the files \texttt{workflow.py} and \texttt{params\_file.yml} from the \texttt{example} folder into your experiment's folder.
 \end{enumerate}
 
 
@@ -247,23 +252,28 @@ To begin post processing of the 3D-PTV results, please follow these steps:
 
 \subsubsection{The \texttt{workflow.py} script}
 
-\texttt{workflow.py} is a Python script used by the user to run the various steps of the experiment. It is used through the terminal or commend line. To use the various functions, use the following syntax:
+\texttt{workflow.py} is a Python script used by the user to run the various steps of the post-processing. The script is used through the terminal or command line. To use MyPTVs various functions, use the following syntax:
+%
 \begin{verbatim}
 cd \path\to\experiment\folder
 python workflow.py params_file.yml "command"
 \end{verbatim}
+%
 where \texttt{"command"} should be replaced with one of the following options, depending on the particular step of the post processing:
 %
 \begin{verbatim}
 	calibration
+	calibration_point_gui
 	match_target_file
+	calibration_with_particles
 	segmentation
 	matching
 	tracking	
 	smoothing
 	stitching
 \end{verbatim}
-
+%
+Each of these commands initiates one of MyPTVs functionalities, and a detailed explanation on them is found in Sections \ref{sec:cal_guide}--\ref{sec:workflow_stitch}.
 
 
 \subsubsection{The \texttt{params\_file.yml} file}
@@ -276,7 +286,7 @@ The \texttt{params\_file.yml} outlines all the parameters needed in order to run
 
 
 
-\subsection{Calibration guide}
+\subsection{Calibration guide} \label{sec:cal_guide}
 
 A good calibration is key to having success in your PTV experiment! Thus, follow this guide to calibrate your camera using MyPTV. 
 
@@ -337,10 +347,10 @@ For the initial calibration, follow these steps:
 \begin{enumerate}
 	\item \textit{Generate the camera file:} The camera file holds the camera parameters (see Fig.~\ref{fig:camfiles}). An empty camera file can be generated automatically by the workflow script when we start the calibration sequence in a directory that doesn't havea  camera file in it (by running \texttt{python workflow.py params\_file.yml calibration} in the command line).
 	
-	\item \textit{Enter an initial guess:} Open the camera file just generated and insert an initial guess for the camera's position ($\vec{O}$ in the first line, and $\vec{\theta}$ in the second line). See Fig.~\ref{fig:cam_pos_example} for a reference on how camera translations and orientations work. 
+	\item \textit{Enter an initial guess:} Open the camera file just generated and insert an initial guess for the camera's position ($\vec{O}$ in the first line), orientation ($\vec{\theta}$ in the second line), and the focal depth ($f$ in the third line). See the \textit{Understanding camera external parameters} box and Fig.~\ref{fig:cam_pos_example} for a reference on how camera translations and orientations and focal lengths are defined. 
 	
-	\item \textit{Segment 6 calibration points:} Choose six points of the calibration target and prepare a file that lets MyPTV know their coordinates in image space and in lab space (see Fig.~\ref{fig:calpointfile} for the format). The name of the file should be inserted under \texttt{calibration\_points\_file} in the \texttt{params\_file.yml}. \\
-	The calibration points file can be generated easily using a dedicated user interface (GUI). To run the GUI, enter \texttt{python workflow.py params\_file calibration\_point\_gui} in the command line. Alternatively, if MyPTV can't find the \texttt{calibration\_points\_file}, the GUI will start automatically. Instruction are given in Fig.~\ref{fig:Cal_point_GUI}. Note, for best performance, it is best to have some asymmetry in the points chosen (e.g. see the blue crosses in Fig.~\ref{fig:Cal_point_GUI}).
+	\item \textit{Segment 6 calibration points:} We start by choosing six points (or more) of the calibration target. The points should not be coplanar and it is best to choose them such that there is some assymetry (e.g. see the blue crosses in Fig.~\ref{fig:Cal_point_GUI}). Then, we need to prepare a file that lets MyPTV know their coordinates in image space and in lab space (see Fig.~\ref{fig:calpointfile} for the format). The name of the file should be inserted under \texttt{calibration\_points\_file} in the \texttt{params\_file.yml}. \\
+	The calibration points file can be generated easily using a dedicated graphical user interface (GUI). To run the GUI, enter \texttt{python workflow.py params\_file calibration\_point\_gui} in the command line. Alternatively, if MyPTV can't find the \texttt{calibration\_points\_file}, the GUI will start automatically. Instruction are given in Fig.~\ref{fig:Cal_point_GUI}.
 	
 	\item \textit{Calibrate using 6 points:} We now calibrate the camera (i.e. improve the initial guess), using the calibration sequence. To start the sequence enter \texttt{python workflow.py params\_file.yml calibration} in the command line. Then, the following actions can be chosen by the user:
 	\begin{verbatim}
@@ -360,11 +370,48 @@ This concludes the initial calibration step.
 
 
 
+\vspace{.5cm}
 
 \begin{figure}[!ht]
-	\centering
-	\includegraphics[width=\textwidth]{Cam_pos_examples.pdf}
-	\caption{Two examples for camera setups. The (x, y, z) system represents the lab space, and the (x', y', z') represents the camera's system of reference. In (a) the camera's position is roughly $\vec{O} = (0,0,1)$, and an appropriate rotation vector could be $\vec{\theta} = (0,\pi,0)$. In (b) the camera's position might be $\vec{O} = (1,1,1)$, and the orientation vector might approximately be $\vec{\theta} = (-\frac{1}{2}\pi,-\frac{3}{4}\pi,0)$. Rules of thumb in trying to guess $\vec{\theta}$ are: 1) ask yourself how should one rotate the lab's frame of reference so that it aligns with the camera's frame of reference; 2) we first rotate around the x axis, then around y and then around z; 3) in many cases the origin of the images is on the top left corner, so a half a turn rotation around the z axis is often needed. \label{fig:cam_pos_example}}
+\begin{center}
+	
+	\fcolorbox{white}{bcolor}{
+	\begin{minipage}[c][][c]{0.95\textwidth}
+		
+		\vspace{.1cm}
+		
+		\textbf{Understanding camera external parameters:} The external parameters of a camera in MyPTV include its position, its orientation, and its focal length, $\vec{O}$, $\vec{\theta}$, and $f$, respectively. In the calibration process, it is important to understand these parameters to be able to give a good initial guess and judge the results of the calibration procedure. Thus, let us explain how these parameters are defined.
+		
+		\vspace{.5cm}
+		
+		Each camera is associated with an image space reference frame, shown in Fig.~\ref{fig:cam_pos_example} as the $x',$ $y'$, and $z'$ axes. The $z'$ axis is normal to the imaging plane (the camera's sensor), while $x',$ and $y'$ are tangent to it; the system is right-handed. 
+		
+		\vspace{.25cm}
+		
+		The position parameter, $\vec{O}$, is defined as a vector pointing from the origin of the lab space coordinate system to the origin of the camera's reference frame. It is measured in lab-space units (e.g. millimeters). Therefore, one could estimate $\vec{O}$ directly by using a ruler or a measuring tape to measure where the camera is in the lab-space coordinates. 
+		
+		\vspace{.25cm}
+		
+		The orientation parameter, $\vec{\theta}$, is a vector of three angles that describe the rotation of the camera's reference frame with respect to the lab space frame, namely the camera's Euler angles. The first angle describes the rotation around the $x'$ axis, the second describes rotation around $y'$, and the third angle describes rotation around $z'$. Rules of thumb in trying to guess $\vec{\theta}$ are: 1) ask yourself "how should one rotate the lab's frame of reference so that it aligns with the camera's frame of reference?"; 2) we first rotate around the $x'$ axis, then around $y'$ and then around $z'$. Note: in many cases, the origin of the images is on the top left corner, so half a turn rotation around the $z'$ axis is often needed. See Fig.~\ref{fig:cam_pos_example} for an example.
+		
+		\vspace{.25cm}
+		
+		The focal length parameter,$f$, is essentially an extension factor. In MyPTV $f$ is measured in units of pixels. The focal length is normally more or less equal to the camera's lens focal length. For example, if one uses a camera with a 60mm lens in their experiment, and the size of one camera pixel is 10$\mu$m=0.01mm, then $f$ would roughly be equal to 6000 (pixels). Potentially, one could also estimate $f$ in an experiment: 1) place the camera in a known position facing a calibration target (as e.g. in Fig.4a) and take a picture 2) prepare a calibration points file for a few of the points on the calibration target; 3) preparing a camera file using the known position and orientation 4) insert some initial value for $f$; 5) using the \texttt{workflow.py} file to compare the distribution of the points using this value of $f$; 6) repeat steps 4 and 5 until a fair agreement is found.  
+		
+		\vspace{.25cm}
+		
+		\begin{center}
+			\includegraphics[width=\textwidth]{Cam_pos_examples.pdf}
+			\caption{Two examples for camera setups. The (x, y, z) system represents the lab space, and the (x', y', z') represents the camera's system of reference. In (a) the camera's position is roughly $\vec{O} = (0,0,1)$, and an appropriate rotation vector could be $\vec{\theta} = (0,\pi,0)$. In (b) the camera's position might be $\vec{O} = (1,1,1)$, and the orientation vector might approximately be $\vec{\theta} = (-\frac{1}{2}\pi,-\frac{3}{4}\pi,0)$. \label{fig:cam_pos_example}}
+		\end{center}
+		
+		
+		\vspace{.1cm}
+		
+	\end{minipage}
+	}
+\end{center}
+
 \end{figure}
 
 
@@ -577,6 +624,8 @@ In this step we extract the particles' image-space coordinates from the images a
 		Parameter & Description\\
 		\hline
 		
+		\texttt{image\char`_start} & The number of the image from which the loof begins. If this is \texttt{None} (default) the first image is set to 0.\\[.3em]
+		
 		\texttt{Number\char`_of\char`_images} & Number of images over which to do the segmentation. If it is 1, segmentation is done only on the image with the name given in \texttt{single\char`_image\char`_name}. If this is an integer, segmentation is performed on the first N images found in the directory \texttt{images\char`_folder}. If this is \texttt{None}, segmentation is performed over all the images in the directory \texttt{images\char`_folder} \\[.3em]
 		
 		\texttt{images\char`_folder} & path to the folder containing the images\\[.3em]
@@ -645,6 +694,8 @@ In the matching step, particles images in the various images are used to stereo-
 		
 		\texttt{blob\_files} & names of files that hold the segmented particles for each camera, separated by commas; for example: \texttt{blobs\_cam1, blobs\_cam2, blobs\_cam3} \\
 		
+		\texttt{frame\_start} & if \texttt{None} will start matching from the first available frame. If an integer it will start the matching from this given number. \\
+		
 		\texttt{N\_frames} & if \texttt{None} will match particles in all available frames; if an integer will match only particles in the first \texttt{N} frames. \\
 		
 		\texttt{camera\_names} & names of cameras used separated by commas; for example, \texttt{cam1, cam2, cam3} \\
@@ -685,6 +736,8 @@ The tracking step is used to link particle in the lab space coordinates in time,
 		\hline
 		
 		\texttt{particles\_file\_name} & path name of the file which holds the 3D coordinates of particles, namely the results of the matching step  \\
+		
+		\texttt{frame\_start} & if \texttt{None} will start tracking from the first available frame. If an integer it will start the tracking from this given number. \\
 		
 		\texttt{N\_frames} & if \texttt{None} will iterate over particles in all frames; if an integer will only track particles in the first \texttt{N} frames of the particles file\\
 		

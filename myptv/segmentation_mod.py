@@ -288,6 +288,9 @@ class particle_segmentation(object):
                     to_remove.append(d[1])
                 else:
                     to_remove.append(d[0])
+                    
+            to_remove = list(set(to_remove))
+                    
             for i in sorted(to_remove, reverse=True): 
                 del blobs[i] 
             
@@ -388,6 +391,7 @@ class loop_segmentation(object):
     and save the results in a file.'''
     
     def __init__(self, dir_name, extension='.tif',
+                 image_start = None,
                  N_img = None, sigma=1.0, threshold=10, mask=1.0,
                  local_filter = 15, median = None, particle_size=3,
                  min_xsize=None, max_xsize=None,
@@ -400,6 +404,9 @@ class loop_segmentation(object):
                    file names. 
         extension - the extension of the images
         
+        image_start - The number of image from which the loop begins. If None, 
+                      the loop shall begin from the first image in the folder.
+        
         N_img -     if None, then this will loop over all the images in the 
                     folder. If it is an integer, will loop over the first
                     N images in the folder.
@@ -409,6 +416,7 @@ class loop_segmentation(object):
         self.dir_name = dir_name
         self.p_size = particle_size
         self.extension = extension
+        self.image_start = image_start
         self.N_img = N_img
         self.sigma = sigma
         self.median = median
@@ -426,6 +434,13 @@ class loop_segmentation(object):
         n_ext = len(self.extension)
         fltr = lambda s: s[-n_ext:]==self.extension
         image_files = sorted(list(filter(fltr, allfiles)))
+        
+        if self.image_start is not None:
+            try:
+                image_files = image_files[self.image_start:]
+            except:
+                raise ValueError('Image start is a positive integer or None')
+        
         self.image_files = image_files
     
     
@@ -440,11 +455,13 @@ class loop_segmentation(object):
         else:
             N = self.N_img
         
+        i0 = (self.image_start is not None) * self.image_start
+        
         blob_list = []
         print('Starting loop segmentation.')
         for i in range(N):
             print('', end='\r')
-            print(' frame: %d'%i, end='\r')
+            print(' frame: %d'%(i+i0), end='\r')
             im = imread(os.path.join(self.dir_name, self.image_files[i]))
             ps = particle_segmentation(im,
                                        sigma=self.sigma, 
@@ -464,7 +481,7 @@ class loop_segmentation(object):
             ps.apply_blobs_size_filter()
             for blb in ps.blobs:
                 blob_list.append([blb[0][0], blb[0][1], blb[1][0], blb[1][1],
-                                  blb[2], i])
+                                  blb[2], i+i0])
         self.blobs = blob_list
         
                                        

@@ -1,26 +1,26 @@
-May 16, 2022
-Version: 0.4.1
+June 26, 2022
+Version: 0.4.3
+
+<img src="./user_manual/figs/logo.png" style="zoom:20%;" />
 
 
-# MyPTV
+## About
 
-MyPTV is an open source library designed for 3D particle Tracking Velocimetry (3D-PTV) measurements. In short, 3D-PTV is a method used to track the positions of particles in three dimensions; and is used extensively in fluid mechanics and can be applied to study other fields as well. The method relies on stereoscopic digital photography from calibrated cameras to infer particle 3D positions and track their motion through time. 
+MyPTV is an open source software designed for 3D particle Tracking Velocimetry (3D-PTV) measurements. In short, 3D-PTV is a method used to track the positions of particles in three dimensions, which is used extensively in fluid mechanics, biology and soft matter physics. The method relies on stereoscopic digital photography from calibrated cameras to infer particle's 3D positions and track their motion through time. 
 
-MyPTV builds heavily on the mathematical framework developed in the OpenPTV project (https://www.openptv.net/), and especially, the photogrammetry principles are the same [1], however it uses several new adaptations of the 3D-PTV algorithms that have been introduced in more recent years, e.g. [2-6], and several novel algorithms developed here.
+<p style="text-align:center;"><img src="./user_manual/figs/traj_animation.gif" width="70%" height="70%"/> </p>
 
-## Why MyPTV?
+MyPTV makes 3D particle tracking accessible to a wide range of scientists in two ways. First, we use the Python programming language, which is open source and accessible to the scientific, non-professional computer programmers, community. We believe that this accessibility to the inner workings of the code is essential for 3D-PTV to go into the future. Second, we attempt to keep the dependencies as few as possible and write as much of the code ourselves; this will help in maintaining the project for many years to come as Python keeps evolving. 
 
-So, why is MyPTV needed? While OpenPTV has been used and tested for many years with proven succses in generating scientific knowledge, the shortcoming of it is that it is written in C++, and therefore, it might be unaccessible to many physics and engineering scientists. This makes it hard for OpenPTV to keep up with the more modern approaches and algorithms, make it hard to debug in case of errors, and to maintain its support in newer operating systems. 
-
-MyPTV solves these issues in two ways. First, we use the Python language, which is more accessible to the scientific, non-professional computer programmers, to handle. This accessibility to the inner workings of the code is essential for 3D-PTV to go into the future. Second, we attempt to keep the dependencies as few as possible and write as much of the code ourselves; this will help in maintaining the project usable for many years to come as Python keeps developing (currently, the only dependencies are a few functions from Numpy and Scipy, and optional plotting relied on Matplotlib). 
+MyPTV builds heavily on the well-proven mathematical framework developed in the OpenPTV project (https://www.openptv.net/), and especially, the photogrammetry principles are the same [1]. The main difference is that the code is written in Python, thus making it accessible to a wider scientific community. Furthermore, MyPTV uses several new adaptations of the traditional algorithms that have been introduced in recent years, e.g. [2-6], and several novel algorithms that we are using were developed here.
 
 ## Who is MyPTV for?
 
-MyPTV is designed to be used by scientists and engineers who need to track the motion of objects in 3D. Applications range from fluid mechanics, biology, or medicine.  
+MyPTV is designed to be used by scientists and engineers who need to track the the three dimensional motion of objects in lab and field experiments. Applications range from fluid mechanics to biology, soft matter, or medicine.  
 
 ## What does MyPTV include?
 
-1) An imaging module that handles the 3D model
+1) An imaging module that handles the photogrammetical model
 2) A calibration module that handles the camera calibration
 3) A segmentation module that handles identifying and segmenting objects from images
 4) A particle matching module that handles reconstructing 3D lab space particle coordinate estimation through triangulation
@@ -37,46 +37,56 @@ MyPTV requires you have Python 3 installed with pip, along with the Python packa
 ###### Using `pip`
 
 1) Open your terminal and change directory to the path of the code:
-	`cd path/to/myptv` 
-	
-2) Finally, we use pip to install by using the following command: 
-	`pip install .`
-or 
-	`pip install -r .\requirements.txt`
+
+​	`cd path/to/myptv` 
+​	
+2) we use pip to install by using the following command: 
+
+​	`pip install .`    or    `pip install -r .\requirements.txt`
 
 3) Optionally, parts of the code can be tested using pytest:
-	`pytest ./tests/ -W ignore::RuntimeWarning`
 
-4) Once this is done we are ready to go! You can now import MyPTV in your python code as usual. For example:
-	`import myptv.imaging_mod`
-or 	
-   `from myptv import imaging_mod`
+​	`pytest ./tests/ -W ignore::RuntimeWarning`
 
 ###### Using `conda` 
 
 1) Install Anaconda or Miniconda and from the command shell inside the directory
 where the package is downloaded:
 
-	`conda env create -f environment.yml`
+​	`conda env create -f environment.yml`
+
 2) Activate the environment:
 
-	`conda activate myptv`
+​	`conda activate myptv`
 
-3) Optionally, parts of the code can be tested using pytest:
-	`pytest ./tests/ -W ignore::RuntimeWarning`
+3) Install MyPTV in the new environment: 
 
-4) Once this is done we are ready to go! You can now import MyPTV in your python code as usual. For example:
+​	`pip install .`
+
+4) Optionally, parts of the code can be tested using pytest:
+
+​	`pytest ./tests/ -W ignore::RuntimeWarning`
+
+## How to start?
+
+To setup MyPTV on your local machine, either clone or download this repository and install MyPTV using the instructions above. Then, you can find detailed using instructions in the Manual (see `/user_manual/user_manual.pdf`).
+
+After the installation is done, you can import MyPTV in your python code as usual. For example:
 	`import myptv.imaging_mod`
 or 	
    `from myptv import imaging_mod`
 
-## How to start?
+## Community guidelines
 
-Detailed instructions are given in the Manual, see `/user_manual/user_manual.pdf`.
+MyPTV was founded in 2022 by Ron Shnapp. In its core, MyPTV is a scientific open source project and contributions are most welcome! 
 
-## Who manages this project?
+1) Facing difficulties using of installing MyPTV? Want to share your new exciting results? Try posting a question on MyPTV's Discussion forum - https://github.com/ronshnapp/MyPTV/discussions. 
 
-MyPTV was founded and is maintained by Ron Shnapp (ronshnapp@gmail.com). Contributions are most welcome. 
+2) Do you wish to contribute to our effort by further developing of MyPTV? Would you like to help debugging and/or test the software? Please leave a post on our Discussion forum - https://github.com/ronshnapp/MyPTV/discussionscontact. 
+
+3) Did you spot a bug? Would like to raise an issue? Please open an issue in our Github repositories' issues section - https://github.com/ronshnapp/MyPTV/issue.
+
+In any case, if you feel the need - please feel free to send Ron an email directly (ronshnapp@gmail.com)!
 
 ## References
 
