@@ -17,3 +17,6 @@ build/*
 *.fls
 user_manual/user_manual.pdf
 .vscode/settings.json
+*.DS_Store
+._with_MyPTV
+example/._*

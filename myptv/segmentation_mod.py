@@ -432,7 +432,12 @@ class loop_segmentation(object):
         import os
         allfiles = os.listdir(self.dir_name)
         n_ext = len(self.extension)
-        fltr = lambda s: s[-n_ext:]==self.extension
+
+        if n_ext > 0:
+            fltr = lambda s: s[-n_ext:]==self.extension
+        else:
+            fltr = lambda s: s # all files will pass
+
         image_files = sorted(list(filter(fltr, allfiles)))
         
         if self.image_start is not None:
