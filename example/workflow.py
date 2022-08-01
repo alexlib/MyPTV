@@ -470,11 +470,24 @@ class workflow(object):
             
             print('\n','blobs found:', len(loopSegment.blobs))
             
-            if save_name is not None:
-                loopSegment.save_results(save_name)
-                print('File saved (%s).'%(save_name))
+            # saving the semented blobs:
+            if save_name is not None and type(save_name)==str:
+                cwd_ls = os.listdir(os.getcwd())
+                if save_name in cwd_ls:
+                    print('\n The file name "%s" already exists in'%save_name)
+                    print(' the working directory. Should I save anyways?')
+                    usr = input('(1=yes, else=no)')
+                    if usr == '1':
+                        loopSegment.save_results(save_name)
+                        print('\nfile saved.')
+                    else:
+                        print('\nskipped saving')
+                    
+                else:
+                    loopSegment.save_results(save_name)
+                    print('\nfile saved.')    
+            print('\nDone.\n')
             
-            print('Done.')
         
         
         # segmenting the image if there is only 1 frames
@@ -510,11 +523,24 @@ class workflow(object):
                 particleSegment.plot_blobs()
                 show()
                 
-            if save_name is not None and type(save_name)==str:
-                particleSegment.save_results(save_name)
-                print('file saved.')
                 
-            print('done.')
+            # Saving the segmented blobs:
+            if save_name is not None and type(save_name)==str:
+                cwd_ls = os.listdir(os.getcwd())
+                if save_name in cwd_ls:
+                    print('\n The file name "%s" already exists in'%save_name)
+                    print(' the working directory. Should I save anyways?')
+                    usr = input('(1=yes, else=no)')
+                    if usr == '1':
+                        particleSegment.save_results(save_name)
+                        print('\nfile saved.')
+                    else:
+                        print('\nskipped saving')
+                else:
+                    particleSegment.save_results(save_name)
+                    print('\nfile saved.')
+                
+            print('\nDone.\n')
             
             
             
@@ -525,6 +551,7 @@ class workflow(object):
         '''
         from myptv.particle_matching_mod import match_blob_files
         from myptv.imaging_mod import camera, img_system
+        from os import getcwd, listdir
         
         # fetching the parameters
         blob_fn = self.get_param('matching', 'blob_files')
@@ -601,10 +628,22 @@ class workflow(object):
         
         # save the results
         if save_name is not None:
-            print('\n','saving file.')
-            mbf.save_results(save_name)
+            cwd_ls = listdir(getcwd())
+            if save_name in cwd_ls:
+                print('\n The file name "%s" already exists in'%save_name)
+                print(' the working directory. Should I save anyways?')
+                usr = input('(1=yes, else=no)')
+                if usr == '1':
+                    print('\n','saving file.')
+                    mbf.save_results(save_name)
+                else:
+                    print('\n','skiped saving.')
+                
+            else:
+                print('\n','saving file.')
+                mbf.save_results(save_name)
         
-        print('\n', 'Finished Matching.')
+        print('\n', 'Finished Matching.\n')
             
         
         
@@ -614,6 +653,7 @@ class workflow(object):
         '''
         from myptv.tracking_mod import tracker_four_frames
         from numpy import array
+        from os import getcwd, listdir
         
         # fetching parameters
         particles_fm = self.get_param('tracking', 'particles_file_name')
@@ -664,8 +704,20 @@ class workflow(object):
 
         # save the results
         if save_name is not None:
-            print('\n','saving file.')
-            t4f.save_results(save_name)
+            cwd_ls = listdir(getcwd())
+            if save_name in cwd_ls:
+                print('\n The file name "%s" already exists in'%save_name)
+                print(' the working directory. Should I save anyways?')
+                usr = input('(1=yes, else=no)')
+                if usr == '1':
+                    print('\n','saving file.')
+                    t4f.save_results(save_name)
+                else:
+                    print('\n', 'skipped saving.')
+            
+            else:
+                print('\n','saving file.')
+                t4f.save_results(save_name)
         
         print('\n', 'Finished tracking.')
         
@@ -677,6 +729,7 @@ class workflow(object):
         '''
         from numpy import loadtxt
         from myptv.traj_smoothing_mod import smooth_trajectories
+        from os import getcwd, listdir
         
         # fetching the smoothing parameters
         trajectory_file = self.get_param('smoothing', 'trajectory_file')
@@ -694,8 +747,20 @@ class workflow(object):
         
         # saving the data
         if save_name is not None:
-            print('\n', 'Saving the smoothed data (%s).'%save_name)
-            sm.save_results(save_name)
+            cwd_ls = listdir(getcwd())
+            if save_name in cwd_ls:
+                print('\n The file name "%s" already exists in'%save_name)
+                print(' the working directory. Should I save anyways?')
+                usr = input('(1=yes, else=no)')
+                if usr == '1':
+                    print('\n', 'Saving the smoothed data (%s).'%save_name)
+                    sm.save_results(save_name)
+                else:
+                    print('\n', 'Skipped saving file.')
+            
+            else:
+                print('\n', 'Saving the smoothed data (%s).'%save_name)
+                sm.save_results(save_name)
         
         print('\n', 'Done.')
         
@@ -708,6 +773,7 @@ class workflow(object):
         '''
         from numpy import loadtxt
         from myptv.traj_stitching_mod import traj_stitching
+        from os import getcwd, listdir
         
         # fetchhing the stitching parameters
         trajectory_file = self.get_param('stitching', 'trajectory_file')
@@ -721,10 +787,22 @@ class workflow(object):
         ts = traj_stitching(traj_list, Ts, dm)
         ts.stitch_trajectories()
         
-        # saveing the data
+        # saving the data
         if save_name is not None:
-            print('\n', 'Saveing the data.')    
-            ts.save_results(save_name)
+            cwd_ls = listdir(getcwd())
+            if save_name in cwd_ls:
+                print('\n The file name "%s" already exists in'%save_name)
+                print(' the working directory. Should I save anyways?')
+                usr = input('(1=yes, else=no)')
+                if usr == '1':
+                    print('\n', 'Saveing the data.')    
+                    ts.save_results(save_name)
+                else:
+                    print('\n', 'Skipped saving file.')
+            
+            else:
+                print('\n', 'Saveing the data.')    
+                ts.save_results(save_name)
         
         print('\n', 'Done.')
         
