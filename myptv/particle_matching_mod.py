@@ -129,28 +129,32 @@ class match_blob_files(object):
         
         # start matching, one frame at a time
         self.particles = []
+        previous_particles = []
         print('')
         
         for e,tm in enumerate(frames):
+            
+            countParticlesInThisFrame = 0
             
             # set up a blobs dictionary with camera names as key
             pd = self.get_particles_dic(tm)
             nb = sum([len(pd[k]) for k in pd.keys()]) /len(pd.keys())
             print('', end='\r')
-            print(' frame: %d ; %.1f blobs per cam'%(tm, nb), end='\r')
+            
             
             # for iterations after the first run, use the time
             # augmented matching
-            if e>0:
-                fltr = lambda p: p[-1]==frames[e-1]
-                previous_particles = list(filter(fltr, self.particles))
+            useTimeMatching = True
+            if e>0 and useTimeMatching:
                 mut = matching_using_time(self.imsys, pd, previous_particles,
                                           max_err = self.max_err)
                 #return mut  # <-- used for checks
                 mut.triangulate_candidates()
                 for p in mut.matched_particles:
                     self.particles.append(p + [tm])
+                    countParticlesInThisFrame += 1
                 
+                # update the particles dictionary
                 pd = mut.return_updated_particle_dict()
                 
                 
@@ -173,7 +177,7 @@ class match_blob_files(object):
 #                 pd = itm.return_updated_particle_dict()
 # =============================================================================
                                 
-            # match particles using the matching object
+            # match particles using the voxel method
             M = matching(self.imsys, pd, self.RIO, self.voxel_size,
                          max_err = self.max_err)
             #return M  # <-- used for checks
@@ -184,11 +188,25 @@ class match_blob_files(object):
             # extract the matched particles to the list self.particles 
             for p in M.matched_particles:
                 self.particles.append(p + [tm])
+                countParticlesInThisFrame += 1
+                
+            # list the particles found in this frame from the next iteration 
+            # of the time matching
+            previous_particles = self.particles[-countParticlesInThisFrame:]
             
+            c4 = sum([1 for p in previous_particles if len(p[3])==4])
+            c3 = sum([1 for p in previous_particles if len(p[3])==3])
+            c2 = sum([1 for p in previous_particles if len(p[3])==2])
+            pc = ' quads. trips. pairs. = (%d, %d, %d)'%(c4, c3, c2)
+            print(' frame: %d ; %.1f blobs/cam ;'%(tm, nb) + pc, end='\r')
+                
+            
+        
+        # filter particles with large triangulation error
         self.particles = list(filter(lambda p: p[4]<self.max_err,
                                      self.particles))
-        
-        print('\n','done!')                        
+        print('\n')
+        print('done!\n')                        
         errors = [p[4] for p in self.particles]
         print('mean error: %.3f'%(sum(errors)/len(errors)))
         Np = len(self.particles)
@@ -465,7 +483,7 @@ class matching(object):
     def get_particles(self):
         '''Once all candidates are found, this function chooses the "best"
         matches and returns them. The reliability of the matches is considered 
-        higher is
+        higher if
         1) they have higher number of cameras participating in the
         triangulation
         2) the RMS of distance between the crossing point and the epipolar 
@@ -569,6 +587,7 @@ class matching_using_time(object):
         previously_used_blobs - A list. Each item in the list is a particle 
                                 that was matched successfully in the previous 
                                 frame.
+                                
         max_err - the maximum allowable triangulation error.
         
         '''
@@ -586,7 +605,7 @@ class matching_using_time(object):
         Will do the triangulation of blobs that are nearest to those that 
         were successfully matched in the previous frame.
         
-        1) for each successfully matched particles in the previous frame, 
+        1) for each successfully matched particle in the previous frame, 
            we find the nearest neighbouring blobs in the current frame
            
         2) we triangulate the blobs
@@ -603,14 +622,31 @@ class matching_using_time(object):
             nearest_blobs_num = {}
             nearest_blobs_coords = {}
             
+            # for the blobs that participated in this particle
             for blb in p_blobs:
                 ci,(rn, (x, y)) = blb
                 cn = self.imsys.cameras[ci].name
                 bn = self.trees[ci].query((x, y))[1]
                 nearest_blobs_num[ci] = bn
                 nearest_blobs_coords[ci] = self.pd[cn][bn]
+             
+            # for cameras that weren't used in this particle we project
+            # the particle on them and locate the nearest blob in the next 
+            # frame. If the neighbour is close enough in the triangulation 
+            # we will use it.
+            camNum = len(self.imsys.cameras)
+            usedCams = list(nearest_blobs_coords.keys())
+            unusedCams = [i for i in range(camNum) if (i not in usedCams)]
+            p_xyz = p[:3] 
+            for ci in unusedCams:
+                cn = self.imsys.cameras[ci].name
+                projectionI = self.imsys.cameras[ci].projection(p_xyz)
+                bn = self.trees[ci].query(projectionI)[1]
+                nearest_blobs_num[ci] = bn
+                nearest_blobs_coords[ci] = self.pd[cn][bn]
+            
                 
-            # second, triangulate them:
+            # second, triangulate the nearest blob neighbours:
             triangulated = self.imsys.stereo_match(nearest_blobs_coords, 1e9)
             
         
