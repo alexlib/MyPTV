@@ -54,12 +54,14 @@
     cam_number: 1 
     blobs_fname: 'blobs_cam1'
     min_traj_len: 4
-    max_point_number: 200
+    max_point_number: 1000
+    target_file: ./Calibration/target_file
 
 - smoothing:
     trajectory_file: trajectories
     window_size: 5
     polynom_order: 3
+    repetitions: 5
     save_name: smoothed_trajectories
 
 - stitching:
