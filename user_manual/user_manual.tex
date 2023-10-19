@@ -66,7 +66,7 @@
 
 \begin{minipage}{14cm}
 	{\small \sffamily
-	Version: 0.6.1 \\
+	Version: 0.6.5 \\
 	Last updated: \today \\
 	Github repository: \url{https://github.com/ronshnapp/MyPTV} \\
 	Get help \& interact with our community: \url{https://github.com/ronshnapp/MyPTV/discussions}\\
@@ -276,6 +276,7 @@ where \texttt{"command"} should be replaced with one of the following options, d
 	smoothing
 	stitching
 	2D_tracking
+	manual_matching
 \end{verbatim}
 %
 Each of these commands initiates one of MyPTVs functionalities, and a detailed explanation on them is found in Sections \ref{sec:cal_guide}--\ref{sec:workflow_stitch}. Use \texttt{help} to print the available list of commands.
@@ -318,7 +319,7 @@ The calibration in MyPTV is performed in two steps: \textit{initial calibration}
 
 
 
-\subsubsection{Preparing a \texttt{target\_file}}
+\subsubsection{Preparing a \texttt{target\_file}}\label{sec:target_file}
 
 The target file is a text file (tab separated values), in which each row shows the lab space coordinates of a calibration point.  An example for the format is shown in Fig.~\ref{fig:target_file}. If there is no target file in the experimental folder, this is the time to generate one. Prepare such a file and save it in the experiment's calibration folder.
 
@@ -474,7 +475,7 @@ The focal length parameter,$f$, is essentially an extension factor. In MyPTV $f$
 \begin{figure}
 	\centering
 	\includegraphics[width=0.8\textwidth]{Cam_pos_examples.pdf}
-	\caption{Two examples for camera setups. The (x, y, z) system represents the lab space, and the (x', y', z') represents the camera's system of reference. In (a) the camera's position is roughly $\vec{O} = (0,0,1)$, and an appropriate rotation vector could be $\vec{\theta} = (0,\pi,0)$. In (b) the camera's position might be $\vec{O} = (1,1,1)$, and the orientation vector might approximately be $\vec{\theta} = (-\frac{1}{2}\pi,-\frac{3}{4}\pi,0)$. \label{fig:cam_pos_example}}
+	\caption{Two examples for camera setups. The (x, y, z) system represents the lab space, and the (x', y', z') represents the camera's system of reference. In (a) the camera's position is roughly $\vec{O} = (0,0,1)$, and an appropriate rotation vector could be $\vec{\theta} = (0,\pi,0)$. In (b) the camera's position might be $\vec{O} = (1,1,1)$, and the orientation vector might approximately be $\vec{\theta} = (-\frac{1}{4}\pi,-\frac{3}{4}\pi,0)$. \label{fig:cam_pos_example}}
 \end{figure}
 
 
@@ -678,20 +679,73 @@ which should start the interface shown in Fig.~\ref{fig:calibration_gui}. The de
 
 
 
+
+
+
+\subsubsection{How to perform calibration with several images (sometimes called multiplane calibration)}\label{sec:multiplane_cal}
+
+
+
+Calibrating the PTV cameras requires having calibration points spanning a full 3D volume, with points being positioned on different planes. Traditionally, this is done by constructing the calibration target with multiple planes (Fig.~\ref{fig:cal_img}).
+However, in some PTV systems another solution is taken such that the calibration target is moved to different locations and images of the target are taken there. In OpenPTV, this is called multiplane calibration. The following steps outline the procedure to follow when using such a multiplane calibration in MyPTV:
+
+\begin{enumerate}
+	\item Place the calibration target in its first position; make sure you the location of the target and take an image of it. Then, move the target to another position and take an image of it. Repeat until the whole domain is covered by your calibration points, and save the sequence of images you just took. 
+	
+	\item Prepare a target file for each one of the images in the calibration sequence (see Seq.~\ref{sec:target_file}). Note that the target file for each image needs to hold only the information for the points that are seen in its particular image. 
+	
+	\item Perform an initial calibration for each of the calibration images, each with respect to its own target file. When you do so, make sure that the you are using a different "camera name" in the params\_file (for example, "cam1\_1", "cam1\_2", "cam1\_3", ..., cam1\_i).
+	
+	\item After finishing the previous step, for each calibration image you should have a file called "XXXXX\_i\_cal\_points" where "XXXXX\_i" stands for the camera names you put in the params file. 
+	
+	\item Make a new empty file called as the base name of the previous files (the "XXXXX" part of the "XXXXX\_i"); in the params\_file, change the camera name to the same value ("XXXXX"). Inside the new file just generated, copy and paste the data from all the "XXXXX\_i\_cal\_points" files.
+	
+	\item Make a copy of one of the camera files, and change its name to "XXXXX". This will make sure you have a camera file from which we start the final calibration.
+	
+	\item Run the final calibration as done in the regular calibration procedure. 
+\end{enumerate}
+
+
+  
+
+
+
+
+
+
+
+
+
+
 \subsection{Segmentation}\label{sec:workflow_segment}
 
 
+Segmentation is essentially the image analysis step of the PTV method, in which we extract the particles' image-space coordinates from the experiment images and save the coordinates in dedicated files. 
 
 
-\subsubsection{How segmentation works} In the segmentation step, the program extracts the location of particles in the image. Segmentation in MyPTV is performed in one of two methods: \textit{labeling}, or \textit{dilation}, and includes several optional image processing steps. 
+\subsubsection{How to segment in MyPTV}
 
+The basics of the segmentation step are done via the \texttt{workflow.py} script with the \texttt{segmentation} command. To run the process follow these steps:
 
 \begin{enumerate}
-	\item In the labeling method, we first choose all pixels in an image whose grey value is higher than a given threshold. Then, such pixels that are touching each other are considered to be "blobs", so we group them together. For each blob, we calculate a \textit{center of mass}, being the grey value weighted average of the blob, a \textit{bounding box} size, and a \textit{mass}, being the sum of grey values of the blobs' pixels.
+	\item We perform the segmentation first on a single image by specifying \texttt{Number\_of\_images: 1}, and giving an image name with \texttt{single\_image\_name}. We then tune the segmentation parameters and the image processing filters used (e.g. \texttt{ROI}, \texttt{threshold}, \texttt{blur\_sigma}, \texttt{method} etc (details below); the full list is given in Table~\ref{tab:segment_params}) to obtain optimal results; optionally repeat over several more images to ensure the results are satisfactory. To view the segmented particles over the image, use \texttt{plot\_result: True}, and make sure the results are not saved by using \texttt{save\_name: None}. 
 	
-	\item In the dilation method, we are looking for pixels that their grey value is higher than that of all their neghbours within a box of a given size (\texttt{particle\_size}), and thet their grey value is higher than a given threshold. After that, all the neighbouring pixels inside the particle size box are considered to be a blob. We then calculate the center of mass of the blob to achieve a better estimation of its position, thus redifining the blob. This process is iterated a maxinum of 3 times untill convergence is obtained. Finally, we calculate the same blob's \textit{center of mass}, \textit{bounding box} size, \textit{mass}.
+	\item Once the parameters are determined, we set \texttt{Number\_of\_images: None}, and run the segmentation workflow again. This will then loop over all the images in the given folder (under \texttt{images\_folder}), and save the results in a text file by setting \texttt{save\_name: /file/name/to/use}
 \end{enumerate}
 
+
+
+
+
+\subsubsection{Two methods of segmentation} In the segmentation step, the program extracts the location of particles in the image. Segmentation in MyPTV is performed in one of two methods: \textbf{\textit{labeling}}, or \textbf{\textit{dilation}}, and includes several optional image processing steps. 
+%
+\begin{itemize}
+	\item \textbf{Labeling:} In this method, we first choose all pixels in an image whose gray value is higher than a given threshold. Then, such pixels that are touching each other are considered to be "blobs", so we group them together. For each blob, we calculate a \textit{center of mass}, being the gray value weighted average of the blob, a \textit{bounding box} size, and a \textit{mass}, being the sum of gray values of the blobs' pixels.
+	
+	\item \textbf{Dilation:} Searching for objects of a certain size. In this method, we are looking for pixels that their gray value is higher than that of all their neighbors within a box of a given size (\texttt{particle\_size}), and that their gray value is higher than a given threshold. After that, all the neighboring pixels inside the particle size box are considered to be a blob. We then calculate the center of mass of the blob to achieve a better estimation of its position, thus redefining the blob. This process is iterated a maximum of 3 times until convergence is obtained. Finally, we calculate the same blob's \textit{center of mass}, \textit{bounding box} size, \textit{mass}.
+\end{itemize}
+%
+While the dilation method can take more computational time, it can sometimes be used to solve segmentation of large objects where overlap is an issue (see Fig.~\ref{fig:Labeling_vs_Dilation}). 
 
 
 To improve the results of segmenting over non-ideal images, MyPTV can be set to apply image processing before the blob extraction. The filters that can be used are a Gaussian blur filter, a median noise removal filter, local mean subtraction filter, and a mask. The first three filters may increase the computational time, however they may be necessary depending on the experimental conditions, such as uneven illumination or noisy images. Examples of the results of using several combinations of the filters on a calibration image is shown in Fig.~\ref{fig:image_filters}. 
@@ -705,14 +759,13 @@ To improve the results of segmenting over non-ideal images, MyPTV can be set to 
 
 
 
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=9cm]{Labeling_vs_Dilation.pdf}
+	\caption{An example showing that segmentation using the dilation method can be very useful when segmenting large objects as it can resolve overlap issues.\label{fig:Labeling_vs_Dilation}}
+\end{figure}
 
-In this step we extract the particles' image-space coordinates from the images and save the coordinates in dedicated files. Use the \texttt{workflow.py} script with the \texttt{segmentation} command to start the process:
 
-\begin{enumerate}
-	\item We perform the segmentation first on a single image by specifying \texttt{Number\_of\_images: 1}, and giving an image name with \texttt{single\_image\_name}. We then tune the segmentation parameters and the image processing filters used (e.g. \texttt{ROI}, \texttt{threshold}, \texttt{blur\_sigma}, \texttt{method} etc; the full list is given in Table~\ref{tab:segment_params}) to obtain optimal results; optionally repeat over several more images to ensure the results are satisfactory. To view the segmented particles over the image, use \texttt{plot\_result: True}, and make sure the results are not saved by using \texttt{save\_name: None}. 
-	
-	\item Once the parameters are determined, we set \texttt{Number\_of\_images: None}, and run the segmentation workflow again. This will then loop over all the images in the given folder (under \texttt{images\_folder}), and save the results in a text file by setting \texttt{save\_name: /file/name/to/use}
-\end{enumerate}
 
 
 
@@ -723,7 +776,7 @@ In this step we extract the particles' image-space coordinates from the images a
 
 \begin{table}[!ht]
 	\centering
-	\caption{The \texttt{params\_file.yml} parameters for the segmentation step. All paths to files are relative to the \texttt{workflow.py} script. \label{tab:segment_params}}
+	\caption{The \texttt{params\_file.yml} parameters for the \textbf{segmentation} step. All paths to files are relative to the \texttt{workflow.py} script. \label{tab:segment_params}}
 	\begin{tabular}{l m{10cm}}
 		\hline
 		Parameter & Description\\
@@ -790,10 +843,12 @@ In this step we extract the particles' image-space coordinates from the images a
 
 In the matching step, particles images in the various images are used to stereo-locate (triangulate) the 3D positions of particles in the lab-space coordinates. As before, run first only on several images to find optimal parameter values, and only then iterate over all frames by setting \texttt{N\_frames: None} and save the results. 
 
+Note: to perform easy stereo matching of points in images, use the manual matching GUI. See Section~\ref{sec:man_match} and Fig.~\ref{fig:man_match}.
+
 
 \begin{table}[!ht]
 	\centering
-	\caption{The \texttt{params\_file.yml} parameters for the matching step. All paths to files are relative to the \texttt{workflow.py} script.}
+	\caption{The \texttt{params\_file.yml} parameters for the \textbf{matching} step. All paths to files are relative to the \texttt{workflow.py} script.}
 	\begin{tabular}{l m{10cm}}
 		\hline
 		Parameter & Description\\
@@ -872,21 +927,27 @@ The tracking step is used to link particle in the lab space coordinates in time,
 
 \begin{table}[!ht]
 	\centering
-	\caption{The \texttt{params\_file.yml} parameters for the tracking step. All paths to files are relative to the \texttt{workflow.py} script.}
+	\caption{The \texttt{params\_file.yml} parameters for the \textbf{tracking} step. All paths to files are relative to the \texttt{workflow.py} script.}
 	\begin{tabular}{l m{10cm}}
 		\hline
 		Parameter & Description\\
 		\hline
 		
-		\texttt{particles\_file\_name} & path name of the file which holds the 3D coordinates of particles, namely the results of the matching step  \\
+		\texttt{particles\_file\_name} & path name of the file which holds the 3D coordinates of particles, namely the results of the matching step  \\[.2cm]
 		
-		\texttt{frame\_start} & if \texttt{None} will start tracking from the first available frame. If an integer it will start the tracking from this given number. \\
+		\texttt{frame\_start} & if \texttt{None} will start tracking from the first available frame. If an integer it will start the tracking from this given number. \\[.2cm]
 		
-		\texttt{N\_frames} & if \texttt{None} will iterate over particles in all frames; if an integer will only track particles in the first \texttt{N} frames of the particles file\\
+		\texttt{N\_frames} & if \texttt{None} will iterate over particles in all frames; if an integer will only track particles in the first \texttt{N} frames of the particles file\\[.2cm]
 		
-		\texttt{d\_max} & the maximum translation in lab space coordinates \\
+		\texttt{d\_max} & the maximum translation in lab space coordinates \\[.2cm]
 		
-		\texttt{dv\_max} & the maximum allowable change in velocity in lab space coordinates per frame (e.g. mm/frame) \\
+		\texttt{dv\_max} & the maximum allowable change in velocity in lab space coordinates per frame (e.g. mm/frame) \\[.2cm]
+		
+		\texttt{mean\_flow} & Adds a constant mean flow parameter that
+		helps the tracking algorithm to track particles in flows with a constant drift; the format is [vx, vy, vz] in e.g. mm/frame. \\[.2cm]
+		
+		\texttt{plot\_candidate\_graph} & If this is set to \verb|True|, once tracking is done, it will show a graph of all the linking candidates. Red lines are links that were made and blue lines were candidates to be linked but they were rejected. \\[.2cm]
+		
 		
 		\texttt{save\_name} & name of the file in which the results shall be saved; if \texttt{None} the results are not saved on the drive\\
 		
@@ -1060,6 +1121,47 @@ The 2D particle tracking procedure requires following these steps:
 		\hline
 	\end{tabular}
 \end{table}
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Manual Matching GUI} \label{sec:man_match}
+
+In certain applications a user might wish to probe the 3D positions of elements in the images manually. Examples might be, to test the quality of the calibration on regions outside of the calibration target, or to measure certain geometrical features of objects in the images. For that purpose MyPTV features a graphical user interface dedicated to doing this easily. To run the GUI, use the \texttt{manual\_matching} command of the \texttt{workflow.py} script. 
+
+
+To match a point we need to identify it from the different camera views. In the GUI we do this by clicking on the point we are after in the various images. See Fig.~\ref{fig:man_match} for instructions.
+
+%
+\begin{table}[!ht]
+	\centering
+	\caption{The \texttt{params\_file.yml} parameters for the manual matching operation. All paths to files are relative to the \texttt{workflow.py} script. \label{tab:man_match}}
+	\begin{tabular}{l m{10cm}}
+		\hline
+		Parameter & Description\\
+		\hline
+		%
+		\texttt{cameras} & a list that holds the names of the cameras used; for example [cam1, cam2, cam3]. Note that the camera files need to be in the same folder where we are running the workflow script\\
+		%
+		\texttt{images} & the paths of the images from which matching should be performed. \\
+		\hline
+	\end{tabular}
+\end{table}
+
+
+
+\begin{figure}
+	\centering
+	\includegraphics[width=12cm]{man_match.pdf}
+	\caption{Instructions of how to use the manual matching GUI \label{fig:man_match}}
+\end{figure}
 
 
 
@@ -1412,6 +1514,7 @@ An object used to perform tracking through the 4-frame best estimate method~\cit
 	\item \texttt{mean\_flow=0.0} - either zero (default) of a numpy array of the mean flow vector, in units of the calibrations spatial units per frame (e.g. mm per frame). The mean flow is assumed not to change in space and time.
 	\item \texttt{d\_max\_=1e10} - maximum allowable translation between two frames for the nearest neighbour search, after subtracting the mean flow. 
 	\item \texttt{dv\_max\_=1e10} - maximum allowable change in velocity for the two-frame velocity projection search. The radius around the projection is therefore dv\_max/dt (where dt = 1 frame$^{-1}$)
+	\item \texttt{store\_candidates = False} - Boolean indicator. If it is true, then the tracker stores all the possible links that correspond to the tracking thresholds. In this case we can then plot a particle linking graph to analyze the tracking quality. If it is False, the tracker does not keep this information.  
 \end{enumerate}
 
 
@@ -1423,6 +1526,8 @@ The important functionality is:
 	\item \texttt{return\_connected\_particles()} - Will retun the list of trajectories that were established.
 	
 	\item \texttt{save\_results(fname)} - Will save the results on the hard drive. The results are saved in a text file, where each row is a sample of a trajectory. The columns are specified as follows: [trajectory number, x, y, z, frame number], see Fig~\ref{fig:trajfile}.  
+	
+	\item \texttt{plot\_candidate\_graph()} - If the candidate links were stored, this method will plot a graph that shows the links that were made and the candidate links that could have been made but were eventually not made due to duplicate links for the same particle. 
 \end{enumerate}
 
 \begin{figure}

@@ -40,11 +40,14 @@ class track_2D(tracker_four_frames):
     '''
     
     def __init__(self, camera, blob_fnames, z_particles, mean_flow = 0.0, 
-                 d_max=1e10, dv_max=1e10, reverse_eta_zeta = False):
+                 d_max=1e10, dv_max=1e10, reverse_eta_zeta = False,
+                 store_candidates=False):
         '''
         inputs -
         
-        camera - a calibrated camera instance.
+        camera - a calibrated camera instance. If this is None, then 
+                 the tracking will be performed in image space directly 
+                 without any calibration.
         
         blob_fname -  the file name that containes the coordinates of 
                       segmented blobs.
@@ -68,6 +71,11 @@ class track_2D(tracker_four_frames):
                            data points were given where the x, y coordinates
                            are transposed (as happens, e.g., if using 
                            matplotlib.pyplot.imshow).
+        
+        store_candidates - boolean indicator, defaul on False. If True, the 
+                           tracker will store all the candidate links that were 
+                           considered in the tracking process for future 
+                           analysis.
         '''
         
         self.cam = camera
@@ -89,6 +97,7 @@ class track_2D(tracker_four_frames):
         self.traj_lengths = {}
         self.N_four_frames = 0
         self.N_nearest_neighbour = 0
+        self.store_candidates = store_candidates
     
     
     
@@ -103,17 +112,22 @@ class track_2D(tracker_four_frames):
         eta - pixel "x" coordinate in camera space
         zeta - pixel "y" coordinate in camera space
         '''
-        if self.reverse_eta_zeta==False:
-            r = self.cam.get_r(eta, zeta)
         
+        if self.cam is None:
+            return eta, zeta
+            
         else:
-            r = self.cam.get_r(zeta, eta)
-        
-        O = self.cam.O
-        a = (self.z_particles - O[2])/r[2]
-        
-        x, y = O[:2]+r[:2]*a
-        return x, y
+            if self.reverse_eta_zeta==False:
+                r = self.cam.get_r(eta, zeta)
+            
+            else:
+                r = self.cam.get_r(zeta, eta)
+            
+            O = self.cam.O
+            a = (self.z_particles - O[2])/r[2]
+            
+            x, y = O[:2]+r[:2]*a
+            return x, y
     
     
     

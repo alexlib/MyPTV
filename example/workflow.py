@@ -51,7 +51,9 @@ class workflow(object):
                                 'segmentation',
                                 'smoothing', 'stitching', 'tracking', 
                                 'calibration', 'calibration_point_gui', 
-                                'match_target_file', '2D_tracking']
+                                'match_target_file', '2D_tracking', 
+                                'manual_matching',
+                                'run_extention']
         
         
         # perform the wanted action:
@@ -91,7 +93,13 @@ class workflow(object):
             
             elif action == 'stitching':
                 self.do_stitching()
-                
+            
+            elif action == 'manual_matching':
+                self.do_manual_matching()
+            
+            elif action == 'run_extention':
+                self.do_run_extention()    
+            
             elif action == 'help':
                 self.help_me()
                 
@@ -787,19 +795,36 @@ class workflow(object):
         N_frames = self.get_param('tracking', 'N_frames')
         d_max = self.get_param('tracking', 'd_max')
         dv_max = self.get_param('tracking', 'dv_max')
+        mean_flow = self.get_param('tracking', 'mean_flow')
+        candidate_graph = self.get_param('tracking', 'plot_candidate_graph')
         save_name = self.get_param('tracking', 'save_name')
         
         
         # initiate the tracker
         t4f = tracker_four_frames(particles_fm, 
                                   d_max=d_max, 
-                                  dv_max=dv_max)
+                                  dv_max=dv_max,
+                                  mean_flow=array(mean_flow),
+                                  store_candidates = candidate_graph)
         
         #setting up the frame range
         ts = int(t4f.times[0])
         te = int(t4f.times[-1])
         
         print('available particles time range: %d -> %d'%(ts,te),'\n')
+        
+        if candidate_graph and (te-ts)>100:
+            print('Warning: you are about to plot a candidate graph with')
+            print('more than 100 frames.')
+            ans = input('Do you wish to proceed (1 = Yes , else = No)?  ')
+            
+            if ans=='1':
+                pass
+            
+            else:
+                print('quitting ')
+                return None
+            
         
         if frame_start is not None:
             if frame_start>=ts and frame_start <=te:
@@ -828,7 +853,10 @@ class workflow(object):
         tot = len(tr)
         print('untracked fraction:', untracked/tot)
         print('tracked per frame:', (tot-untracked)/len(set(tr[:,-1])))
-
+        
+        if candidate_graph:
+            t4f.plot_candidate_graph()
+        
         # save the results
         if save_name is not None:
             cwd_ls = listdir(getcwd())
@@ -1011,6 +1039,48 @@ class workflow(object):
         t2d.save_results(save_name)
         
         print('\nDone!')
+        
+        
+    
+    def do_manual_matching(self):
+        '''
+        Runs a GUI that helps performing manual stereo-matching of
+        points from images. You simply click on the images from different
+        cameras and the GUI gives back the 3D coordinates of this point. 
+        '''
+        from myptv.gui_manual_matching import man_match_gui
+        
+        # fetchhing the stitching parameters
+        camera_names = self.get_param('manual_matching_GUI', 'cameras')
+        im_fname = self.get_param('manual_matching_GUI', 'images')
+        
+        print(camera_names)
+        print(im_fname)
+        
+        gui = man_match_gui(camera_names, im_fname, cameras_folder='.')
+    
+        
+        
+    def do_run_extention(self):
+        '''
+        This is an option to load extrenal extentions to MyPTV. Get it done
+        by setting the propper parameters in the params_file.
+        '''
+        
+        # fetchhing the stitching parameters
+        path_to_extention = self.get_param('run_extention', 'path_to_extention')
+        action_name = self.get_param('run_extention', 'action_name')
+        extention_params_file = self.get_param('run_extention', 'extention_params_file')
+        
+        # 1) import the script  "path_to_extention"
+        
+        # 2) load the extensions' parameter from extention_params_file
+        
+        # 3) run the class given as action_name, with the parameter given
+        
+        
+        
+        return None
         
 #%%
         
