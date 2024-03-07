@@ -14,7 +14,7 @@ segmented particles' image coordinates.
 from myptv.utils import line_dist
 from math import ceil, floor
 from itertools import combinations, product
-from numpy import savetxt, array
+from numpy import savetxt, array, inf
 from numpy.random import uniform
 from scipy.spatial import KDTree
 
@@ -148,10 +148,10 @@ class matching_with_marching_particles_algorithm(object):
     def match_nearest_blobs(self, x, frame):
         '''
         Given a point in lab space, x, and a frame number, this function 
-        find in each camera the blobs nearest to this point's projection, 
+        finds in each camera the blobs nearest to this point's projection, 
         it stereo matches them, and returns the results. 
         
-        Results are returned only if the stereo match is consedered
+        Results are returned only if the stereo match is considered
         successfull, which means the max_d_err and min_cam_match tests 
         were successfull.
         '''
@@ -166,12 +166,17 @@ class matching_with_marching_particles_algorithm(object):
         coords = {}
         matchBlobs = {}
         for camNum in range(self.Ncams):
+            if frame not in self.blobs[camNum].keys(): continue
             cam = self.imsys.cameras[camNum]
             projection = cam.projection(x)
             kNN = self.B_ik_trees[camNum].query([projection], k=self.max_k)  
             ind = kNN[1][0]
+            dist = kNN[0][0]
             for i in range(len(ind)):
                 
+                if dist[i]==inf:
+                    continue
+                                
                 identifier = (camNum, frame, ind[i])
                 if identifier in self.matchedBlobs[frame]: # this blob has been used
                     continue
@@ -223,7 +228,12 @@ class matching_with_marching_particles_algorithm(object):
             # whr = [i for i in range(self.blobs[camNum][frame].shape[0]) 
             #                              if i not in used_blob_indexes[camNum]]
             # self.B_ik_trees[camNum] = KDTree(self.blobs[camNum][frame][whr,:2])
-            self.B_ik_trees[camNum] = KDTree(self.blobs[camNum][frame][:,:2])
+
+            if frame not in self.blobs[camNum].keys():
+                self.B_ik_trees[camNum] = None
+                
+            else:
+                self.B_ik_trees[camNum] = KDTree(self.blobs[camNum][frame][:,:2])
             
         self.B_ik_trees['frame'] = frame
     
@@ -324,6 +334,14 @@ class matching_with_marching_particles_algorithm(object):
         blob pairs in two given cameras. The points that are found are then
         returned.
         '''
+        
+        # if there are no blobs in this frame, return empty list
+        if frame not in self.blobs[camNum1].keys():
+            return []
+        
+        if frame not in self.blobs[camNum2].keys():
+            return []
+        
         # fetching the cameras and the blobs
         cam1 = self.imsys.cameras[camNum1] ; cam2 = self.imsys.cameras[camNum2]
         O1 = cam1.O ; O2 = cam2.O
