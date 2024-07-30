@@ -17,6 +17,7 @@ from itertools import combinations, product
 from numpy import savetxt, array
 from numpy.random import uniform
 from scipy.spatial import KDTree
+from math import isinf
 
 from pandas import read_csv
 
@@ -171,6 +172,9 @@ class matching_with_marching_particles_algorithm(object):
             kNN = self.B_ik_trees[camNum].query([projection], k=self.max_k)  
             ind = kNN[1][0]
             for i in range(len(ind)):
+                
+                if isinf(kNN[0][0][i]):
+                    continue
                 
                 identifier = (camNum, frame, ind[i])
                 if identifier in self.matchedBlobs[frame]: # this blob has been used
