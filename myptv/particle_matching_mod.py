@@ -167,6 +167,7 @@ class matching_with_marching_particles_algorithm(object):
         coords = {}
         matchBlobs = {}
         for camNum in range(self.Ncams):
+            if self.B_ik_trees[camNum] is None: continue # <- no blobs in frame
             cam = self.imsys.cameras[camNum]
             projection = cam.projection(x)
             kNN = self.B_ik_trees[camNum].query([projection], k=self.max_k)  
@@ -217,17 +218,15 @@ class matching_with_marching_particles_algorithm(object):
         number. Blobs that have been used up already do not appear in the 
         trees' dataset.
         '''
-        
-        # used_blob_indexes = dict([(cn, []) for cn in range(self.Ncams)])
-        # for b in self.matchedBlobs[frame]:
-        #    if b[1]==frame:
-        #         used_blob_indexes[b[0]].append(b[2])
             
         for camNum in range(self.Ncams):
-            # whr = [i for i in range(self.blobs[camNum][frame].shape[0]) 
-            #                              if i not in used_blob_indexes[camNum]]
-            # self.B_ik_trees[camNum] = KDTree(self.blobs[camNum][frame][whr,:2])
-            self.B_ik_trees[camNum] = KDTree(self.blobs[camNum][frame][:,:2])
+            
+            # self.B_ik_trees[camNum] = KDTree(self.blobs[camNum][frame][:,:2])
+            
+            try:
+                self.B_ik_trees[camNum] = KDTree(self.blobs[camNum][frame][:,:2])
+            except:
+                self.B_ik_trees[camNum] = None
             
         self.B_ik_trees['frame'] = frame
     
@@ -328,6 +327,10 @@ class matching_with_marching_particles_algorithm(object):
         blob pairs in two given cameras. The points that are found are then
         returned.
         '''
+        # ensure the cameras have blobs in this frame
+        if frame not in list(self.blobs[camNum1].keys()): return []
+        if frame not in list(self.blobs[camNum2].keys()): return []
+        
         # fetching the cameras and the blobs
         cam1 = self.imsys.cameras[camNum1] ; cam2 = self.imsys.cameras[camNum2]
         # O1 = cam1.O ; O2 = cam2.O
