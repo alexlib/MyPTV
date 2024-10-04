@@ -17,6 +17,7 @@ from itertools import combinations, product
 from numpy import savetxt, array, inf
 from numpy.random import uniform
 from scipy.spatial import KDTree
+from math import isinf
 
 from pandas import read_csv
 
@@ -174,9 +175,10 @@ class matching_with_marching_particles_algorithm(object):
             dist = kNN[0][0]
             for i in range(len(ind)):
                 
+
                 if dist[i]==inf:
                     continue
-                                
+
                 identifier = (camNum, frame, ind[i])
                 if identifier in self.matchedBlobs[frame]: # this blob has been used
                     continue
@@ -218,11 +220,6 @@ class matching_with_marching_particles_algorithm(object):
         number. Blobs that have been used up already do not appear in the 
         trees' dataset.
         '''
-        
-        # used_blob_indexes = dict([(cn, []) for cn in range(self.Ncams)])
-        # for b in self.matchedBlobs[frame]:
-        #    if b[1]==frame:
-        #         used_blob_indexes[b[0]].append(b[2])
             
         for camNum in range(self.Ncams):
             # whr = [i for i in range(self.blobs[camNum][frame].shape[0]) 
@@ -334,6 +331,7 @@ class matching_with_marching_particles_algorithm(object):
         blob pairs in two given cameras. The points that are found are then
         returned.
         '''
+<<<<<<< HEAD
         
         # if there are no blobs in this frame, return empty list
         if frame not in self.blobs[camNum1].keys():
@@ -341,10 +339,15 @@ class matching_with_marching_particles_algorithm(object):
         
         if frame not in self.blobs[camNum2].keys():
             return []
+=======
+        # ensure the cameras have blobs in this frame
+        if frame not in list(self.blobs[camNum1].keys()): return []
+        if frame not in list(self.blobs[camNum2].keys()): return []
+>>>>>>> bug fix regarding frames with no blobs in  matching
         
         # fetching the cameras and the blobs
         cam1 = self.imsys.cameras[camNum1] ; cam2 = self.imsys.cameras[camNum2]
-        O1 = cam1.O ; O2 = cam2.O
+        # O1 = cam1.O ; O2 = cam2.O
         blobs1 = self.blobs[camNum1][frame]
         blobs2 = self.blobs[camNum2][frame]
         
@@ -373,7 +376,8 @@ class matching_with_marching_particles_algorithm(object):
             if identifier in self.matchedBlobs[frame]: # this blob has been used
                 continue
             
-            r = cam2.get_r(b[0], b[1])
+            #r = cam2.get_r(b[0], b[1])
+            O2, r = cam2.get_epipolarline(b[0], b[1])
             a_center = sum([r[i]*(O_ROI[i]-O2[i]) for i in range(3)]) 
             a1, a2 = a_center - a_range/2 , a_center + a_range/2 
             
@@ -406,7 +410,8 @@ class matching_with_marching_particles_algorithm(object):
             if identifier in self.matchedBlobs[frame]: # this blob has been used
                 continue
             
-            r = cam1.get_r(b[0], b[1])
+            # r = cam1.get_r(b[0], b[1])
+            O1, r = cam1.get_epipolarline(b[0], b[1])
             a_center = sum([r[i]*(O_ROI[i]-O1[i]) for i in range(3)]) 
             a1, a2 = a_center - a_range/2 , a_center + a_range/2 
             
@@ -945,8 +950,9 @@ class matching_Ray_Traversal(object):
             return
         
         cam  = self.imsys.cameras[ray[2][0]]
-        O = cam.O
-        r = cam.get_r(ray[0], ray[1])
+        # O = cam.O
+        # r = cam.get_r(ray[0], ray[1])
+        O, r = cam.get_epipolarline(ray[0], ray[1])
         r_ = r / sum(r**2)**0.5
 
         a1, a2 = (self.RIO[2][0] - O[2])/r_[2], (self.RIO[2][1] - O[2])/r_[2]

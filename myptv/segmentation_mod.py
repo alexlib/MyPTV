@@ -21,6 +21,8 @@ from scipy.ndimage import gaussian_filter, median_filter
 from scipy.ndimage.measurements import label, find_objects
 from scipy.spatial import KDTree
 
+import tqdm
+
 
 
 class particle_segmentation(object):
@@ -316,15 +318,20 @@ class particle_segmentation(object):
             
         elif self.method=='labeling':
             
+            # getting the binary image
             self.bin_im = self.get_binary_image() 
+            
+            # labeling connected foreground pixels to form "blobs"
             blob_pixels = self.blob_labeling(self.bin_im)
             
             blobs = []
             
             stamp_y, stamp_x = meshgrid(range(self.im.shape[1]), 
                                         range(self.im.shape[0]))
-            for loc in blob_pixels:
-                mask = 1.0*(self.labeled[loc]>0)
+            
+            for e, loc in enumerate(blob_pixels):
+                # extracting blob parameters
+                mask = 1.0*(self.labeled[loc]>0)*(self.labeled[loc]==e+1)
                 mass = npsum(self.processed_im[loc] * mask)
                 X = npsum(stamp_x[loc] * self.processed_im[loc] * mask) / mass
                 Y = npsum(stamp_y[loc] * self.processed_im[loc] * mask) / mass
@@ -416,7 +423,8 @@ class loop_segmentation(object):
                  min_xsize=None, max_xsize=None,
                  min_ysize=None, max_ysize=None,
                  min_mass=None, max_mass=None,
-                 method='labeling'):
+                 method='labeling',
+                 raw_format=False):
         '''
         dir_name - string with the name of the directory that holds the 
                    images. Images should have a sequential numbers in their
@@ -434,7 +442,13 @@ class loop_segmentation(object):
                            images, defined as the median value of each pixel,
                            and then background_subtraction is done by taking 
                            the difference from the median. If this is False,
-                           then this operation is skipped.
+                           then this operation is skipped. If this is a numpy
+                           array, than it is used as the BG image.
+                           
+        raw_format (default=Flase) - Set to true if the images are in raw 
+                                     format (e.g. .dng). Then, we use the
+                                     package rawpy to load the images.
+        
                     
         The rest are parameters for the segmentation class. 
         '''
@@ -451,7 +465,29 @@ class loop_segmentation(object):
         self.mass_limits = (min_mass, max_mass)
         self.loc_filter = local_filter
         self.method = method
-        self.BG_remove = remove_ststic_BG
+        self.raw_format = raw_format
+        
+        if self.raw_format == False:
+            self.imread_func = lambda x: io.imread(x)
+        
+        else:
+            import rawpy
+            self.imread_func = lambda x: rawpy.imread(x).raw_image
+        
+        # optionally using pre-calculated BG image:
+        if type(remove_ststic_BG) == bool:
+            self.BG_remove = remove_ststic_BG
+            
+        else:
+            from numpy import ndarray
+            if type(remove_ststic_BG) == ndarray:
+                self.BG = remove_ststic_BG
+            self.BG_remove=None
+        
+        
+        
+        
+                
     
     
     def get_file_names(self):
@@ -487,11 +523,20 @@ class loop_segmentation(object):
         else: 
             BG_images=self.image_files[::int(len(self.image_files)/400+1)][:200]
         
-        BG_images = [os.path.join(self.dir_name, im) for im in self.image_files]
+        BG_images = [os.path.join(self.dir_name, im) for im in BG_images]
         # reading the images for BG subtraction
-        ic = io.ImageCollection(BG_images)
         
-        self.BG = npmedian(ic, axis=0)
+        for i in range(len(BG_images)):
+            if i==0:
+                #im0 = io.imread(BG_images[i])*1.0
+                im0 = self.imread_func(BG_images[i])*1.0
+            else:
+                #im0 += io.imread(BG_images[i])
+                im0 += self.imread_func(BG_images[i])
+        
+        self.BG = im0 / len(BG_images)
+        #ic = io.ImageCollection(BG_images)
+        #self.BG = npmedian(ic, axis=0)
         
         
     def segment_folder_images(self):
@@ -505,19 +550,21 @@ class loop_segmentation(object):
         else:
             N = self.N_img
             
-        if self.BG_remove==True:
-            self.calculate_BG()
-        else:
-            self.BG = None
+        if type(self.BG_remove)==bool:
+            if self.BG_remove==True:
+                self.calculate_BG()
+            else:
+                self.BG = None
         
         i0 = (self.image_start is not None) * self.image_start        
         
         blob_list = []
         print('Starting loop segmentation.\n')
-        for i in range(N):
-            print('', end='\r')
-            print(' frame: %d'%(i+i0), end='\r')
-            im = imread(os.path.join(self.dir_name, self.image_files[i]))
+        for i in tqdm.tqdm(range(N)):
+            #print('', end='\r')
+            #print(' frame: %d'%(i+i0), end='\r')
+            #im = imread(os.path.join(self.dir_name, self.image_files[i]))
+            im = self.imread_func(os.path.join(self.dir_name, self.image_files[i]))
             ps = particle_segmentation(im,
                                        sigma=self.sigma, 
                                        threshold=self.th,

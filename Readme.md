@@ -1,5 +1,7 @@
-November 23, 2023
-Version: 0.8.2
+October 04, 2024
+
+Version: 1.0.3
+
 
 <img src="./user_manual/figs/logo.png" style="zoom:20%;" />
 
