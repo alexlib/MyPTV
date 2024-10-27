@@ -56,6 +56,7 @@ class workflow(object):
                                 'manual_matching',
                                 'fiber_orientations',
                                 'plot_trajectories',
+                                'animate_trajectories',
                                 'run_extention']
         
         
@@ -108,6 +109,9 @@ class workflow(object):
                 
             elif action == 'plot_trajectories':
                 self.do_plot_trajectories()
+                
+            elif action == 'animate_trajectories':
+                self.do_animate_trajectories()
             
             elif action == 'run_extention':
                 self.do_run_extention()    
@@ -624,12 +628,22 @@ class workflow(object):
         
             # segmenting the image if there are more than 1 frames
             if N_img is None or N_img>1:
+                
+                if type(remove_BG)==str:
+                    print('\n','using given background image')
+                    BG = imread(remove_BG)*1.0
+                elif remove_BG==True:
+                    print('\n','calculating background image')
+                    BG = calculate_BG_image(dirname, ext)
+                else:
+                    BG=False
+                
                 loopSegment = loop_segmentation(dirname, 
                                                 particle_size=p_size,
                                                 extension=ext,
                                                 image_start=image_start,
                                                 N_img=N_img,
-                                                remove_ststic_BG=remove_BG,
+                                                remove_ststic_BG=BG,
                                                 sigma=sigma, 
                                                 median=median,
                                                 threshold=threshold, 
@@ -988,7 +1002,8 @@ class workflow(object):
         '''
         Will perform the tracking using the file given parameters.
         '''
-        from myptv.tracking_mod import tracker_four_frames
+        from myptv.tracking_mod import tracker_four_frames, tracker_multiframe
+        from myptv.tracking_mod import traj_NSR, fill_in_trajectory
         from numpy import array
         from os import getcwd, listdir
         from os.path import exists as pathExists
@@ -1003,63 +1018,124 @@ class workflow(object):
         candidate_graph = self.get_param('tracking', 'plot_candidate_graph')
         save_name = self.get_param('tracking', 'save_name')
         
+        method = self.get_param('tracking', 'method')
+        max_dt = self.get_param('tracking', 'max_dt')
+        Ns = self.get_param('tracking', 'Ns')
+        NSR_th = self.get_param('tracking', 'NSR_threshold')
         
-        # initiate the tracker
-        t4f = tracker_four_frames(particles_fm, 
-                                  d_max=d_max, 
-                                  dv_max=dv_max,
-                                  mean_flow=array(mean_flow),
-                                  store_candidates = candidate_graph)
         
-        #setting up the frame range
-        ts = int(t4f.times[0])
-        te = int(t4f.times[-1])
+        if method not in ['multiframe', 'fourframe']:
+            raise ValueError("method can only be 'multiframe' or 'four_frame'.")
+
         
-        print('available particles time range: %d -> %d'%(ts,te),'\n')
         
-        if candidate_graph and (te-ts)>100:
-            print('Warning: you are about to plot a candidate graph with')
-            print('more than 100 frames.')
-            ans = input('Do you wish to proceed (1 = Yes , else = No)?  ')
+        
+        if method=='fourframe':
             
-            if ans=='1':
-                pass
+            # initiate the tracker
+            t4f = tracker_four_frames(particles_fm, 
+                                      d_max=d_max, 
+                                      dv_max=dv_max,
+                                      mean_flow=array(mean_flow),
+                                      store_candidates = candidate_graph)
             
+            #setting up the frame range
+            ts = int(t4f.times[0])
+            te = int(t4f.times[-1])
+            
+            print('available particles time range: %d -> %d'%(ts,te),'\n')
+            
+            if candidate_graph and (te-ts)>100:
+                print('Warning: you are about to plot a candidate graph with')
+                print('more than 100 frames.')
+                ans = input('Do you wish to proceed (1 = Yes , else = No)?  ')
+                
+                if ans=='1':
+                    pass
+                
+                else:
+                    print('quitting ')
+                    return None
+                
+            
+            if frame_start is not None:
+                if frame_start>=ts and frame_start <=te:
+                    ts = frame_start
+                else: 
+                    print('Warning: frame_start outside the available frame range')
+                    #raise ValueError('frame_start outside the available frame range')
+            
+            if N_frames is None:
+                frames = range(ts, te)
             else:
-                print('quitting ')
-                return None
+                try:
+                    frames = range(ts, ts+N_frames)
+                except:
+                    tp = type(frames)
+                    msg = 'N_frames must be an integer or None (given %s).'%tp
+                    raise TypeError(msg)
             
-        
-        if frame_start is not None:
-            if frame_start>=ts and frame_start <=te:
-                ts = frame_start
-            else: 
-                print('Warning: frame_start outside the available frame range')
-                #raise ValueError('frame_start outside the available frame range')
-        
-        if N_frames is None:
-            frames = range(ts, te)
-        else:
-            try:
-                frames = range(ts, ts+N_frames)
-            except:
-                tp = type(frames)
-                msg = 'N_frames must be an integer or None (given %s).'%tp
-                raise TypeError(msg)
+            # do the tracking
+            t4f.track_all_frames(frames=frames)
+            
+            # print some statistics
+            tr = array(t4f.return_connected_particles())
+            untracked = len(tr[tr[:,0]==-1])
+            tot = len(tr)
+            print('untracked fraction:', untracked/tot)
+            print('tracked per frame:', (tot-untracked)/len(set(tr[:,-1])))
+            
+            if candidate_graph:
+                t4f.plot_candidate_graph()
         
         
-        # do the tracking
-        t4f.track_all_frames(frames=frames)
         
-        # print some statistics
-        tr = array(t4f.return_connected_particles())
-        untracked = len(tr[tr[:,0]==-1])
-        tot = len(tr)
-        print('untracked fraction:', untracked/tot)
-        print('tracked per frame:', (tot-untracked)/len(set(tr[:,-1])))
         
-        if candidate_graph:
-            t4f.plot_candidate_graph()
+        
+        
+        elif method=='multiframe':
+            
+            tmf = tracker_multiframe(particles_fm, max_dt, Ns, 
+                                     d_max=d_max, dv_max=dv_max, 
+                                     NSR_th=NSR_th, 
+                                     mean_flow=array(mean_flow))
+            
+            #setting up the frame range
+            ts = int(tmf.times[0])
+            te = int(tmf.times[-1])
+            print('available particles time range: %d -> %d'%(ts,te),'\n')
+            
+            if candidate_graph:
+                print('\nNote, candidate graph can only be plotted with')
+                print('fourframe tracker, so it is skipped.')
+            
+            
+            if frame_start is not None:
+                if frame_start>=ts and frame_start <=te:
+                    ts = frame_start
+                else: 
+                    print('Warning: frame_start outside the available frame range')
+                    #raise ValueError('frame_start outside the available frame range')
+            
+            if N_frames is None:
+                frames = range(ts, te)
+            else:
+                try:
+                    frames = range(ts, ts+N_frames)
+                except:
+                    tp = type(frames)
+                    msg = 'N_frames must be an integer or None (given %s).'%tp
+                    raise TypeError(msg)
+            
+            
+            # doing the tracking
+            frame_skips = max([int(Ns/3), 1])
+            tmf.track_frames(f0=ts, fe=te, frame_skips=frame_skips)
+            
+            # interpolating missing points
+            tmf.interpolate_trajs()
+            
+
         
         # save the results
         if save_name is not None:
@@ -1070,15 +1146,21 @@ class workflow(object):
                 usr = input('(1=yes, else=no)')
                 if usr == '1':
                     print('\n','saving file.')
-                    t4f.save_results(save_name)
+                    if method=='fourframe': t4f.save_results(save_name)
+                    elif method=='multiframe': tmf.save_results(save_name)
+                
                 else:
                     print('\n', 'skipped saving.')
             
             else:
                 print('\n','saving file.')
-                t4f.save_results(save_name)
+                if method=='fourframe': t4f.save_results(save_name)
+                elif method=='multiframe': tmf.save_results(save_name)
         
         print('\n', 'Finished tracking.')
+        
+        
+        
         
         
         
@@ -1412,6 +1494,37 @@ class workflow(object):
                           write_trajID=write_trajID, 
                           t0=t0, 
                           te=te)
+    
+    
+    
+    def do_animate_trajectories(self):
+        '''
+        This function is used to generate a 3D animation of the trajectories
+        in a given file.
+        '''
+        from myptv.makePlots.plot_trajectories import animate_trajectories
+        
+        # fetching the parameters
+        fname = self.get_param('animate_trajectories', 'file_name')
+        min_length = self.get_param('animate_trajectories', 'min_length')
+        f0 = self.get_param('animate_trajectories', 'f_start')
+        fe = self.get_param('animate_trajectories', 'f_end')
+        fps = self.get_param('animate_trajectories', 'fps')
+        tail_length = self.get_param('animate_trajectories', 'tail_length')
+        elevation = self.get_param('animate_trajectories', 'elevation')
+        azimoth = self.get_param('animate_trajectories', 'azimoth')
+        rotation_rate= self.get_param('animate_trajectories', 'rotation_rate')
+                 
+        
+        at = animate_trajectories(fname, min_length, fps=fps, 
+                                  tail_length=tail_length, 
+                                  f0=f0, fe=fe,
+                                  view_angles = (elevation, azimoth), 
+                                  rotation_rate = rotation_rate)
+        at.animate()
+        
+        print('')
+        print('animation saved. Done!')
     
     
     
