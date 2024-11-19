@@ -83,6 +83,50 @@ def point_line_dist(O,r,P):
 
 
 
+class line(object):
+    
+    def __init__(self, O, r):
+        '''
+        A helper class for calculating line and point distances.
+        O - a point through which the line passes
+        r - a vector of the line direction
+        '''
+        self.O = O
+        self.r = r
+        
+    def distance_to_point(self, P):
+        '''
+        Returns the least distance between the line and a given point P.
+        '''
+        s1 = sum([self.r[i]*(P[i]-self.O[i]) for i in [0,1,2]])
+        s2 = sum([ri**2 for ri in self.r])
+        amin = s1 / s2
+        
+        dmin = sum([(self.O[i]-P[i]+amin*self.r[i])**2 for i in [0,1,2]])**0.5
+        
+        return dmin, amin, self.O + amin*self.r
+        
+    
+
+
+def get_nearest_line_crossing(line_list):
+    '''
+    Given a list of line objects, this function find a point that minimizes
+    the sum of the distances to it.
+    '''
+    from scipy.optimize import minimize
+    func = lambda P: sum([l.distance_to_point(P)[0] for l in line_list])
+    P = minimize(func, array([0,0,0])).x
+    return P
+
+
+
+
+
+
+
+
+
 def fit_polynomial(x, y, n):
     '''
     A polynomial of degree n is written as:
@@ -119,6 +163,47 @@ def fit_polynomial(x, y, n):
 
 
 
+
+
+
+class Cal_image_coord(object):
+    '''
+    A class used for reading the calibration image files. This is called
+    by the camera class if given a filename with calibration points. 
+    '''
+    
+    def __init__(self, fname):
+        '''
+        input - 
+        fname - String, the path to your calibration point file. The file is
+                holds tab separated values with the meaning of: 
+                    [x_image, y_image, x_lab, y_lab, z_lab]
+        '''
+        self.image_coords = []
+        self.lab_coords = []
+        self.fname = fname
+        self.read_file()
+        
+        
+    def read_file(self):
+        
+        with open(self.fname) as f:
+            lines = f.readlines()
+            self.N_points = len(lines)
+            
+            for ln in lines:
+                ln_ = ln.split()
+                self.image_coords.append([float(ln_[0]), float(ln_[1])])
+                self.lab_coords.append( [float(ln_[2]), 
+                                         float(ln_[3]),
+                                         float(ln_[4])] )
+                f.close()
+
+
+
+
+
+
 class match_calibration_blobs_and_points(object):
     '''
     This is a tool used to matxh between a calibration "target file" and
@@ -145,6 +230,7 @@ class match_calibration_blobs_and_points(object):
         self.cam = camera
         self.blobs = loadtxt(blob_fname)
         self.targets = loadtxt(target_file_fname)
+        self.get_neighbor_separation()
         
     
     def pair_points(self):
@@ -165,12 +251,32 @@ class match_calibration_blobs_and_points(object):
                     d_min = d
                     j_min = j
             
-            if d_min < 30:
+            if d_min < self.dmin/2:
                 blob_point_pair = NPappend(self.blobs[i][1::-1],
                                             self.targets[j_min])
                 point_pairs.append(blob_point_pair)
         
         self.point_pairs = point_pairs
+        
+        
+    def get_neighbor_separation(self):
+        '''
+        returns an estimate for the minimum separation distance between blobs.
+        '''
+        bxy = self.blobs[:,1::-1]
+        dmin = 1e20
+        N = len(bxy)
+        i=0
+        
+        for i in range(min([N,20])):
+            for j in range(N):
+                if j==i: continue
+                d = sum((bxy[i] - bxy[j])**2)**0.5
+                if d<dmin:
+                    dmin = d
+        print('dmin: ', dmin)
+        self.dmin = dmin
+        
         
         
     def save_results(self, fname):
@@ -209,58 +315,6 @@ class match_calibration_blobs_and_points(object):
 
 
 
-#=============================================================================
-#Line intersects. Not in use at the moment - only, testing.
-
-
-def find_point_nearest_to_lines(line_list):
-    '''
-    Will use least squares in order to solve the problem of finding the
-    point that is the closest to several lines. (Note that for two lines there
-    is an analytical solution that is used in the function line_dist()).
-    
-    This function uses scipy.optimize.least_squares() !
-    
-    input -
-    line_list - a list of tuples (O, r) where O and r are the origin and 
-                direction vectors (numpy arrays, 3) that define a line in 
-                3d space.
-                
-    returns -
-    P - the point in 3d space that minimizes the distance to the lines in the 
-        list.
-    '''
-    from scipy.optimize import least_squares
-    
-    def dist_sum(P):
-        dist = 0
-        for O,r in line_list:
-            dist += point_line_dist(O, r, P)
-        return dist
-    
-    x0 = line_dist(line_list[0][0], line_list[0][1], 
-                   line_list[1][0], line_list[1][1])[1]
-    P = least_squares(dist_sum, x0, method='dogbox', ftol=1e-8)
-    return P
-    
-
-
-
-
-def nearest_intersect(lines):
-    import numpy as np
-    I = np.eye(3)
-    
-    S1 = 0
-    S2 = 0
-    for i in range(len(lines)):
-        Oi = np.array([lines[i][0]])
-        ri = lines[i][1]
-        S1 += I - np.dot(Oi.T, Oi)
-        S2 += np.dot(I - np.dot(Oi.T, Oi), ri)
-    return np.linalg.lstsq(S1, S2, rcond=None)
-        
-#=============================================================================
 
 
 

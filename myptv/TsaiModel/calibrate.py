@@ -14,7 +14,7 @@ from pandas import read_csv
 
 
 
-class calibrate(object):
+class calibrate_Tsai(object):
     '''
     This object is used to calibrate cameras against a given list
     of lab and camera point coordinates. 
@@ -80,6 +80,9 @@ class calibrate(object):
         '''
         from scipy.optimize import minimize
         
+        
+        # 1) find center and rotation angles
+        
         def func(X):
             self.camera.O = X[:3]
             self.camera.theta = X[3:6]
@@ -102,9 +105,6 @@ class calibrate(object):
         
         else:
             X0 = hstack([c.O, c.theta, c.xh, c.yh, c.f])
-            
-        # res = minimize(func, X0, method='nelder-mead',
-        #                options={'maxiter': maxiter})
             
         if (self.camera.E == 0).all():
             res = minimize(func, X0, method='BFGS',
@@ -473,7 +473,7 @@ class calibrate(object):
 
 
 
-class calibrate_with_particles(object):
+class calibrate_with_particles_Tsai(object):
     '''
     A class used to refine the calibration using particles data. In short,
     after the primary clibration is done, matching and tracking can be used
@@ -575,9 +575,9 @@ class calibrate_with_particles(object):
     def get_calibrate_instance(self):
         
         # initiating a calibrate object using this data
-        self.cal = calibrate(self.camera, 
-                             [p[0] for p in self.cal_points], 
-                             [p[1] for p in self.cal_points])
+        self.cal = calibrate_Tsai(self.camera, 
+                                  [p[0] for p in self.cal_points], 
+                                  [p[1] for p in self.cal_points])
         return self.cal
         
         

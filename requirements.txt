@@ -22,3 +22,5 @@ tk
 tifffile
 pyyaml
 imagecodecs
+rawpy
+moviepy

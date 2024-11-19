@@ -1,8 +1,13 @@
 - calibration:
-    camera_name: cam3
+    3D_model: Tsai
+    camera_name: cam1
     resolution: 1280, 1024
-    calibration_image: ./Calibration/cal3.tif
+    calibration_image: ./Calibration/cal1.tif
     target_file: ./Calibration/target_file
+
+- analyze_calibration_error:
+    camera_names: cam1, cam2, cam3
+    plot_histogram: True
 
 - segmentation:
     Number_of_images: None
@@ -10,6 +15,7 @@
     images_folder: Images_cam3
     single_image_name: 01.tif
     image_extension: '.tif'
+    raw_format: False
     shape: particles
     mask: 1.0
     ROI: 227, 1050, 120, 920
@@ -36,9 +42,8 @@
     march_forwards: True
     march_backwards: True
     camera_names: cam1, cam2, cam3
-    cam_resolution: 1280, 1024
     ROI: 0.0, 70.0, 0.0, 70.0, -25.0, 15.0
-    voxel_size: 10
+    voxel_size: 20
     N0: 100
     max_err: 0.25
     min_cam_match: 3
@@ -46,23 +51,26 @@
 
 - tracking:
     particles_file_name: particles
+    method: multiframe
     frame_start: 0
     N_frames: None
     d_max: 1.0
     dv_max: 1.0
+    max_dt: 3
+    Ns: 5
+    NSR_threshold: 0.25
     mean_flow: [0.0, 0.0, 0.0]
     plot_candidate_graph: False
     save_name: trajectories
 
 - calibration_with_particles:
     camera_name: cam1
-    resolution: 1280, 1024
     traj_filename: './trajectories'
     cam_number: 1 
     blobs_fname: 'blobs_cam1'
     min_traj_len: 4
     max_point_number: 1000
-    target_file: ./Calibration/target_file
+    calibration_image: ./Calibration/cal1.tif
 
 - smoothing:
     trajectory_file: trajectories
@@ -100,7 +108,25 @@
     fibers_file: particles
     trajectory_file: trajectories
     save_name: fiber_orientations
-    
+
+- plot_trajectories:
+    file_name: smoothed_trajectories
+    min_length: 2
+    write_trajID: False 
+    t0: 0
+    te: -1
+
+- animate_trajectories:
+    file_name: smoothed_trajectories
+    min_length: 2 
+    f_start: None
+    f_end: None
+    fps: 25
+    tail_length: 3
+    elevation: 15
+    azimoth: 70
+    rotation_rate: 0.2
+
 - run_extension:
     path_to_extention: the_absolute_path_to_the_script_containing_the_code 
     action_name: the_name_of_the_class_that_needs_to_run  

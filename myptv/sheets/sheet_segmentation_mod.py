@@ -1,25 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec  7 18:02:07 2018
+Created on May 2024
 
 @author: ron
 
+Contains code for segmenting particles (aka blobs) 
+and their silhouettes (aka edges) 
 
-contains a class for segmentation of circular particles
 """
 
-from myptv.tracking_2D_mod import track_2D_multiframe
-from myptv.TsaiModel.camera import camera_Tsai
-from myptv.tracking_mod import fill_in_trajectory
-
-from pandas import read_csv
-
-from numpy import ones, savetxt, meshgrid, float32
+from numpy import ones, savetxt, meshgrid, array, gradient
 from numpy import sum as npsum
 from numpy import abs as npabs
-from numpy import median as npmedian
-from numpy import array, divide, zeros_like
-from numpy import append as npappend
 
 from skimage.io import imread
 from skimage import io
@@ -27,13 +19,10 @@ from skimage import io
 from scipy.signal import convolve2d
 from scipy.ndimage import gaussian_filter, median_filter
 from scipy.ndimage.measurements import label, find_objects
-from scipy.spatial import KDTree
-
-import tqdm
 
 
 
-class particle_segmentation(object):
+class sheet_segmentation(object):
     '''a class for segmenting out particles (blobs) for a given image'''
     
     
@@ -106,25 +95,13 @@ class particle_segmentation(object):
     def local_filter(self, image):
         '''returns a new image where the local mean neighbourhood of
         each pixel is subtracted.'''
-        # w = self.loc_filter
-        # window = ones((w, w)) / w**2
-        # local_mean = convolve2d(image, window, mode='same')
-        # new_im = image - local_mean
-        # new_im[new_im<0] = 0
-        # new_im = new_im.astype('uint8')
-        
-        S = self.loc_filter
-        flt = image.astype(float32) #/ 255.0
-        blur = gaussian_filter(flt, S)
-        num = flt - blur
-        
-        blur = gaussian_filter(num*num, S)
-        den = blur**0.5        
-        # normed = num / den
-        # to ensure no accidental zero division 
-        normed = divide(num, den, out = zeros_like(num), where = (den != 0.0))
-
-        return image * (normed>1)
+        w = self.loc_filter
+        window = ones((w, w)) / w**2
+        local_mean = convolve2d(image, window, mode='same')
+        new_im = image - local_mean
+        new_im[new_im<0] = 0
+        new_im = new_im.astype('uint8')
+        return new_im
         
     
     
@@ -202,7 +179,7 @@ class particle_segmentation(object):
         brightness above the threshold brightness value.
         
         input -
-        coord - an tuple or list of size 2 with the x,y coordinates
+        coord - a tuple or list of size 2 with the x,y coordinates
         size - if None, size is set to be self.particle_size; otherwise it 
                shoud be an integer.
         '''
@@ -274,7 +251,7 @@ class particle_segmentation(object):
     
     
     
-    def get_blobs(self):
+    def get_blobs_and_silhouettes(self):
         '''Returns a list of particle centers, their box size, and area
         
         The center is the weighted mean of the blob coordinates using
@@ -285,81 +262,39 @@ class particle_segmentation(object):
         
         returns - blobs: a nested list of [ [(center), (box size), area], ...]
         '''    
-
-        if self.method == 'dilation':
-                
-            # get a list of pixel coordinates that are bright local maxima
-            self.bin_im = self.get_binary_image() 
-            self.Y, self.X = meshgrid(range(self.im.shape[1]), 
-                                      range(self.im.shape[0]))
-            coords = list(zip(self.X[self.bin_im>0], self.Y[self.bin_im>0]))
-                
-            blobs = []
-            for coord in coords:
-                
-                # perform iterations (maximum of 3) to refine particles' position
-                for i in range(3) :
-                    C, bbox, mass = self.characterize_blob(coord)
-                    d = ((C[0]-coord[0])**2 + (C[1]-coord[1])**2)**0.5 
-                    coord = C
-                    
-                    if d < 1.0:
-                        break
-                
-                # round the center of mass
-                coord = [round(coord[0], ndigits=2), 
-                         round(coord[1], ndigits=2)]
-                
-                # add final blob to final list
-                blobs.append( [coord, bbox, mass] )
-                
+        # getting the binary image
+        self.bin_im = self.get_binary_image() 
+        
+        # labeling connected foreground pixels to form "blobs"
+        blob_pixels = self.blob_labeling(self.bin_im)
+        
+        # making an image with the edges of the blobs
+        grad = gradient(self.labeled)
+        self.silhouette_image = npsum(array(grad*(self.labeled>0))**2, axis=0)
+        
+        stamp_y, stamp_x = meshgrid(range(self.im.shape[1]), 
+                                    range(self.im.shape[0]))
+        
+        blobs = []
+        
+        for e, loc in enumerate(blob_pixels):
+            # 1. extracting blob parameters
+            mask = 1.0*(self.labeled[loc]>0)*(self.labeled[loc]==e+1)
+            mass = npsum(self.processed_im[loc] * mask)
+            X = npsum(stamp_x[loc] * self.processed_im[loc] * mask) / mass
+            Y = npsum(stamp_y[loc] * self.processed_im[loc] * mask) / mass
+            center = [round(X, ndigits=2), round(Y, ndigits=2)]
+            box_size = list(mask.shape)
+            blobs.append( [center, box_size, mass])
             
-            # search and remove duplicates; duplicates are points that are 
-            # closer than self.particle_size/2 away. In this case, we keep the
-            # blob with lower mass, 
-            if len(blobs) > 0: 
-                tree = KDTree([b[0] for b in blobs])
-                duplicates = tree.query_pairs(self.p_size/2)
-                to_remove = []
-                for d in duplicates:
-                    if blobs[d[0]][-1] < blobs[d[1]][-1]:
-                        to_remove.append(d[1])
-                    else:
-                        to_remove.append(d[0])
-                        
-                to_remove = list(set(to_remove))
-                        
-                for i in sorted(to_remove, reverse=True): 
-                    del blobs[i] 
-                
-            self.blobs = blobs
+            # 2. extracting the pixels of the edges of each blob
+            mask = 1.0*(self.silhouette_image[loc]>0)*(self.labeled[loc]==e+1)
+            sill_x = (stamp_x[loc] * mask)[stamp_x[loc] * mask > 0]
+            sill_y = (stamp_y[loc] * mask)[stamp_x[loc] * mask > 0]
+            blobs[-1].append(list(zip(sill_x, sill_y)))
             
+        self.blobs = blobs
             
-            
-        elif self.method=='labeling':
-            
-            # getting the binary image
-            self.bin_im = self.get_binary_image() 
-            
-            # labeling connected foreground pixels to form "blobs"
-            blob_pixels = self.blob_labeling(self.bin_im)
-            
-            blobs = []
-            
-            stamp_y, stamp_x = meshgrid(range(self.im.shape[1]), 
-                                        range(self.im.shape[0]))
-            
-            for e, loc in enumerate(blob_pixels):
-                # extracting blob parameters
-                mask = 1.0*(self.labeled[loc]>0)*(self.labeled[loc]==e+1)
-                mass = npsum(self.processed_im[loc] * mask)
-                X = npsum(stamp_x[loc] * self.processed_im[loc] * mask) / mass
-                Y = npsum(stamp_y[loc] * self.processed_im[loc] * mask) / mass
-                center = [round(X, ndigits=2), round(Y, ndigits=2)]
-                box_size = list(mask.shape)
-                blobs.append( [center, box_size, mass])
-                
-            self.blobs = blobs
    
         
    
@@ -416,12 +351,21 @@ class particle_segmentation(object):
         the given name fname.
         '''
         blob_list = []
-        for blb in self.blobs:
+        edges_list = []
+        
+        for e,blb in enumerate(self.blobs):
             blob_list.append([blb[0][0], blb[0][1], blb[1][0], blb[1][1],
                               blb[2], 0])
             
+            for px, py in blb[3]:
+                edges_list.append([e, px, py, 0])
+            
+            
         savetxt(fname, blob_list, 
                 fmt=['%.02f','%.02f','%d','%d','%d','%d'], delimiter='\t')
+        
+        savetxt(fname+'_edges', edges_list, 
+                fmt=['%d','%d','%d','%d'], delimiter='\t')
         
         
         
@@ -430,7 +374,7 @@ class particle_segmentation(object):
         
         
         
-class loop_segmentation(object):
+class loop_sheet_segmentation(object):
     
     '''A class for looping over images in a directory to segment particles
     and save the results in a file.'''
@@ -443,8 +387,7 @@ class loop_segmentation(object):
                  min_xsize=None, max_xsize=None,
                  min_ysize=None, max_ysize=None,
                  min_mass=None, max_mass=None,
-                 method='labeling',
-                 raw_format=False):
+                 method='labeling'):
         '''
         dir_name - string with the name of the directory that holds the 
                    images. Images should have a sequential numbers in their
@@ -462,13 +405,7 @@ class loop_segmentation(object):
                            images, defined as the median value of each pixel,
                            and then background_subtraction is done by taking 
                            the difference from the median. If this is False,
-                           then this operation is skipped. If this is a numpy
-                           array, than it is used as the BG image.
-                           
-        raw_format (default=Flase) - Set to true if the images are in raw 
-                                     format (e.g. .dng). Then, we use the
-                                     package rawpy to load the images.
-        
+                           then this operation is skipped.
                     
         The rest are parameters for the segmentation class. 
         '''
@@ -485,29 +422,7 @@ class loop_segmentation(object):
         self.mass_limits = (min_mass, max_mass)
         self.loc_filter = local_filter
         self.method = method
-        self.raw_format = raw_format
-        
-        if self.raw_format == False:
-            self.imread_func = lambda x: io.imread(x)
-        
-        else:
-            import rawpy
-            self.imread_func = lambda x: rawpy.imread(x).raw_image
-        
-        # optionally using pre-calculated BG image:
-        if type(remove_ststic_BG) == bool:
-            self.BG_remove = remove_ststic_BG
-            
-        else:
-            from numpy import ndarray
-            if type(remove_ststic_BG) == ndarray:
-                self.BG = remove_ststic_BG
-            self.BG_remove=None
-        
-        
-        
-        
-                
+        self.BG_remove = remove_ststic_BG
     
     
     def get_file_names(self):
@@ -548,11 +463,9 @@ class loop_segmentation(object):
         
         for i in range(len(BG_images)):
             if i==0:
-                #im0 = io.imread(BG_images[i])*1.0
-                im0 = self.imread_func(BG_images[i])*1.0
+                im0 = io.imread(BG_images[i])*1.0
             else:
-                #im0 += io.imread(BG_images[i])
-                im0 += self.imread_func(BG_images[i])
+                im0 += io.imread(BG_images[i])
         
         self.BG = im0 / len(BG_images)
         #ic = io.ImageCollection(BG_images)
@@ -569,43 +482,55 @@ class loop_segmentation(object):
             N = len(self.image_files)
         else:
             N = self.N_img
+        
+        print('found %d files\n'%N)
             
-        if type(self.BG_remove)==bool:
-            if self.BG_remove==True:
-                self.calculate_BG()
-            else:
-                self.BG = None
+        if self.BG_remove is True:
+            self.calculate_BG()
+            
+        elif hasattr(self.BG_remove,'shape'):
+            self.BG = self.BG_remove
+            
+        else:
+            self.BG = None
         
         i0 = (self.image_start is not None) * self.image_start        
         
         blob_list = []
+        edges_list = []
+        
         print('Starting loop segmentation.\n')
-        for i in tqdm.tqdm(range(N)):
-            #print('', end='\r')
-            #print(' frame: %d'%(i+i0), end='\r')
-            #im = imread(os.path.join(self.dir_name, self.image_files[i]))
-            im = self.imread_func(os.path.join(self.dir_name, self.image_files[i]))
-            ps = particle_segmentation(im,
-                                       sigma=self.sigma, 
-                                       threshold=self.th,
-                                       median=self.median,
-                                       local_filter=self.loc_filter,
-                                       BG_image=self.BG,
-                                       mask=self.mask,
-                                       max_xsize=self.bbox_limits[1],
-                                       min_xsize=self.bbox_limits[0],
-                                       max_ysize=self.bbox_limits[3],
-                                       min_ysize=self.bbox_limits[2],
-                                       min_mass=self.mass_limits[0],
-                                       max_mass=self.mass_limits[1],
-                                       method = self.method,
-                                       particle_size=self.p_size)
-            ps.get_blobs()
-            ps.apply_blobs_size_filter()
-            for blb in ps.blobs:
+        for i in range(N):
+            print('', end='\r')
+            print(' frame: %d'%(i+i0), end='\r')
+            im = imread(os.path.join(self.dir_name, self.image_files[i]))
+            sg = sheet_segmentation(im,
+                                    sigma=self.sigma, 
+                                    threshold=self.th,
+                                    median=self.median,
+                                    local_filter=self.loc_filter,
+                                    BG_image=self.BG,
+                                    mask=self.mask,
+                                    max_xsize=self.bbox_limits[1],
+                                    min_xsize=self.bbox_limits[0],
+                                    max_ysize=self.bbox_limits[3],
+                                    min_ysize=self.bbox_limits[2],
+                                    min_mass=self.mass_limits[0],
+                                    max_mass=self.mass_limits[1],
+                                    method = self.method,
+                                    particle_size=self.p_size)
+            sg.get_blobs_and_silhouettes()
+            sg.apply_blobs_size_filter()
+            
+            for e,blb in enumerate(sg.blobs):
                 blob_list.append([blb[0][0], blb[0][1], blb[1][0], blb[1][1],
                                   blb[2], i+i0])
+                for px, py in blb[3]:
+                    edges_list.append([e, px, py, i+i0])
+                    
         self.blobs = blob_list
+        self.edges = edges_list
+        
         
                                        
     def save_results(self, fname):
@@ -618,156 +543,47 @@ class loop_segmentation(object):
         savetxt(fname, self.blobs, 
                 fmt=['%.02f','%.02f','%d','%d','%d','%d'], delimiter='\t')
         
+        savetxt(fname+'_edges', self.edges, 
+                fmt=['%d','%d','%d','%d'], delimiter='\t')
         
+        
+        
+        
+        
+        
+if __name__=='__main__':
+    
+    import matplotlib.pyplot as plt
+    
+    # dirname = '/home/ron/Desktop/Research/myptv_tests/sheet_segmentation'
+    # lss = loop_sheet_segmentation(dirname, image_start=0,
+    #                               threshold=0.5, sigma=0.5,
+    #                               remove_ststic_BG=False)
+    # lss.segment_folder_images()
+    # lss.save_results('blobs_cam1')
+    
+    
+    # =====================================
+    # Segment a particle in a single image:
+    
+    # fn = '/home/ron/Desktop/Research/myptv_tests/sheet_segmentation/im_cam4.tif'
+    # image = imread(fn, as_gray=True)
+    # sg = sheet_segmentation(image, sigma=None, threshold=20)
+    
+    # bin_im = sg.get_binary_image()
+    
+    # sg.get_blobs_and_silhouettes()
+    #=======================================
+    
+    # plt.imshow(sg.labeled)
+    
+    # for blb in sg.blobs:
+    #     sill_pixels = blb[3]
+    #     for px in sill_pixels:
+    #         plt.plot(px[1], px[0], 'bo', alpha=0.3)
         
     
-
-
-
-
-
-
-
-class tracking_augmented_segmentation(track_2D_multiframe):
     
-    def __init__(self, fname, max_dt, Ns, d_max=1e10, dv_max=1e10, NSR_th=0.25):
-        '''
-        A class that uses 2D tracking of segmented blobs using the multiframe
-        algorithm, and then "missing particle" interpolation in attempt to 
-        fill in for occlusions.
-        
-        fname - name of a file with blobs to be tracking augmented
-        
-        max_dt, Ns, d_max, dv_max, NSR_th - tracking related to the multiframe
-        tracking used. See the class over in tracking_mod for details. 
-        '''
-        
-        self.fname = fname
-        self.reverse_eta_zeta = False
-        self.z_particles = 0.0
-        self.U = 0
-        
-        self.max_dt = max_dt
-        self.Ns = Ns
-        self.d_max = d_max
-        self.dv_max = dv_max
-        self.NSR_th = NSR_th
-        
-        self.blobs = dict([(k, array(g)) for k,g in 
-                           read_csv(self.fname,header=None,sep='\t').groupby(5)])
-        
-        self.times = sorted(list(self.blobs.keys()))
-        
-        self.trees = {}
-        
-        self.used_particles = dict([(tm, []) for tm in self.times])
-        
-        # a list to store trajectories
-        self.trajs = []
-        
-        self.blobs_len = len(self.blobs[self.times[0]][0])
-        
-
-    def blobs_to_particles(self):
-        '''
-        This function uses the blob data to generate a dicionary of particles 
-        in the format used by tracker_multiframe. 
-        '''
-        self.particles = {}
-        
-        for k in self.blobs.keys():
-            self.particles[k] = []
-            
-            for i in range(len(self.blobs[k])):
-                blob = self.blobs[k][i]
-
-                p = array([-1, blob[0], blob[1], 0.0, i, 0.0, blob[-1]])
-                self.particles[k].append(p)
-                
-            self.particles[k] = array(self.particles[k])
-            
-            
-    
-    def augment_blobs(self):
-        '''
-        Will interpolate trajectories that have skipped frames. We interpolate
-        the missing points by using a 3nd order polynomial, namely assuming 
-        linear acceleration in the interpolated range. Then, we add the 
-        interpolated points to the blobs dictionary.
-        '''
-        
-        frame_skips = max([1, int(self.Ns/3)])
-        self.track_frames(f0=None, fe=None, frame_skips=frame_skips)
-        
-        N_links_0 = sum([len(tr)+1 for tr in self.trajs])
-        
-        msg = 'Interpolating skipped frames'
-        for i in tqdm.tqdm(range(len(self.trajs)), desc=msg):
-            
-            tr = self.trajs[i]
-            
-            # 1) check if the trajectory has skipped frames; if not, we
-            #    continue to the next trajectory
-            dt = tr[-1,-1] - tr[0,-1]
-            l = len(tr)
-            if dt == l-1: continue
-            
-            # 2) interpolate the missing points by interpolation
-            interpolated = fill_in_trajectory(tr)
-            self.trajs[i] = interpolated
-            
-            # 3) get the interpolated points
-            tr_times = tr[:,-1]
-            interp_points = [interpolated[i] for i in range(len(interpolated))
-                             if interpolated[i][-1] not in tr_times]
-            
-            # 4) add the interpolated points to self.blobs
-            for ip in interp_points:
-                zeros = [-1 for i in range(self.blobs_len-3)]
-                blob = [ip[1], ip[2]] + zeros + [ip[-1]]
-                self.blobs[ip[-1]] = npappend(self.blobs[ip[-1]], [blob],
-                                              axis=0)
-                
-            
-        N_links_e = sum([len(tr)+1 for tr in self.trajs])
-        N_new = N_links_e-N_links_0
-        stats = (N_new, N_new/N_links_e*100)
-        print('')
-        print('interpolated %d points (%.1f percent)'%stats)
-        
-        
-        
-    def save_augmented_blobs(self, fname):
-        '''
-        Will save the blobs with a given file name
-        '''
-        
-        tosave = []
-        for k in self.blobs.keys():
-            tosave += list(self.blobs[k])
-        
-        savetxt(fname, tosave, delimiter='\t', 
-                fmt=['%.02f','%.02f','%d','%d','%d','%d'])
-        
-
-
-# =============================================================================
-# if __name__ == '__main__':
-#     fn = '/home/ron/Desktop/Research/jetArrayTank/20241020_puffs/Rec18/blobs_cam4'
-#     dt_max = 3 
-#     Ns = 9
-#     t2d = tracking_augmented_segmentation(fn, dt_max, Ns, d_max=3, dv_max=3)
-#     t2d.blobs_to_particles()
-#     t2d.augment_blobs()
-#     
-#     t2d.save_augmented_blobs('blobs_cam4_augmented')
-# =============================================================================
-
-
-
-
-
-
 
 
 
