@@ -185,11 +185,64 @@ class matching_with_marching_particles_algorithm(object):
                 
                 else:
                     blob = self.blobs[camNum][frame][ind[i]]
+                    # Test with multiple KNN, didn't work well.
+# =============================================================================
+#                     try:
+#                         coords[camNum].append(blob[:2])
+#                         matchBlobs[camNum].append((blob[:2], ind[i]))
+#                     except:
+#                         coords[camNum] = [blob[:2]]
+#                         matchBlobs[camNum] = [(blob[:2], ind[i])]
+# =============================================================================
+
                     coords[camNum] = blob[:2]
                     matchBlobs[camNum] = (blob[:2], ind[i])
                     break
+
                 
         
+        
+        # Test with multiple KNN, didn't work well.
+# =============================================================================
+#         # (3) perform the stereo matching; If it fails, return None.
+#         coords_combos = get_subdics(coords)
+#         matchBlobs_combos = get_subdics(matchBlobs)        
+#         for i in range(len(coords_combos)):
+#             coords = coords_combos[i]
+#             matchBlobs = matchBlobs_combos[i]
+#             
+#             res = self.imsys.stereo_match(coords, self.max_d_err, 
+#                                           strict_match=True)
+#             if res is None: continue
+#             else: xNew, pairedCams, err = res 
+#             
+#             # if the min_cam_match passes, return the results; else, return None
+#             if len(pairedCams)<self.min_cam_match: continue
+#             
+#             # if the error is too big, return None
+#             if err>self.max_d_err: continue
+#             
+#             # TEST1 - add ROI
+#             # if the poit is out of the ROI return None
+#             inX = self.ROI[0] <= xNew[0] <= self.ROI[1]
+#             inY = self.ROI[2] <= xNew[1] <= self.ROI[3]
+#             inZ = self.ROI[4] <= xNew[2] <= self.ROI[5]
+#             inROI = inX and inY and inZ
+#             if not(inROI): continue
+#             
+#             else:
+#                 for camNum in list(matchBlobs.keys()):
+#                     if camNum not in pairedCams:
+#                         del(matchBlobs[camNum])
+#                     else:
+#                         self.matchedBlobs[frame].add((camNum, frame, matchBlobs[camNum][1]))
+#             
+#             return xNew, matchBlobs, err, frame
+#         
+#         return None
+# =============================================================================
+    
+    
         
         # (3) perform the stereo matching; If it fails, return None.
         # res = self.imsys.stereo_match(coords, self.max_d_err*self.Ncams)
@@ -202,7 +255,15 @@ class matching_with_marching_particles_algorithm(object):
         if len(pairedCams)<self.min_cam_match: return None
         
         # if the error is too big, return None
-        elif err>self.max_d_err: return None
+        if err>self.max_d_err: return None
+        
+        # TEST1 - add ROI
+        # if the poit is out of the ROI return None
+        inX = self.ROI[0] <= xNew[0] <= self.ROI[1]
+        inY = self.ROI[2] <= xNew[1] <= self.ROI[3]
+        inZ = self.ROI[4] <= xNew[2] <= self.ROI[5]
+        inROI = inX and inY and inZ
+        if not(inROI): return None
         
         else:
             for camNum in list(matchBlobs.keys()):
@@ -546,7 +607,29 @@ class matching_with_marching_particles_algorithm(object):
 
 
 
-
+def get_subdics(dic):
+    '''
+    Takes in a dictionary whose items are lists and returns a list of 
+    dictionaries whose items are lists of length one, made out of combinations
+    of the original dictionaries items. 
+    
+    for example:
+    input: 
+    c = {'a':[1,2], 'b':[4], 'c':[5,6]}
+    output:
+    [{'a': 1, 'b': 4, 'c': 5}
+     {'a': 1, 'b': 4, 'c': 6}
+     {'a': 2, 'b': 4, 'c': 5}
+     {'a': 2, 'b': 4, 'c': 6}]
+    '''
+    lenList = [(k,len(dic[k])) for k in dic.keys()]
+    ranges_lst = [list(range(lenList[i][1])) for i in range(len(lenList))]
+    combos = list(product(*ranges_lst))
+    dicList = []
+    for comb in combos:
+        tupList = [(lenList[i][0] , dic[lenList[i][0] ][comb[i]]) for i in range(len(comb))]
+        dicList.append(dict(tupList))
+    return dicList
 
 
 
@@ -726,27 +809,8 @@ class match_blob_files_Ray_Traversal(object):
                 
                 # update the particles dictionary
                 pd = mut.return_updated_particle_dict()
-                
-                
-# =============================================================================
-#            The initiation of matching with time has a bug. For now
-#            We comment it out, and will fix this in the future.
-#
-#             # for the first iteration, initiate search using the neighbouring
-#             # blobs paradigm
-#             if e==0 and len(frames)>1:
-#                 pd1 = self.get_particles_dic(frames[e+1])
-#                 itm = initiate_time_matching_Ray_Traversal(self.imsys, pd, pd1, 
-#                                              self.max_blob_dist, self.RIO, 
-#                                              self.voxel_size, 
-#                                              max_err = self.max_err)
-#                 itm.choose_blobs_with_neighbours()
-#                 itm.match_blobs_with_neighbours()
-#                 for p in itm.matched_particles:
-#                     self.particles.append(p + [tm])
-#                 pd = itm.return_updated_particle_dict()
-# =============================================================================
-                                
+
+
             # (2) match particles using the voxel method
             M = matching_Ray_Traversal(self.imsys, pd, self.RIO, self.voxel_size,
                          max_err = self.max_err)
