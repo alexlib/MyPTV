@@ -140,7 +140,6 @@ class particle_segmentation(object):
         
         blur = gaussian_filter(num*num, S)
         den = blur**0.5        
-        # normed = num / den
         # to ensure no accidental zero division 
         normed = divide(num, den, out = zeros_like(num), where = (den != 0.0))
 
@@ -484,7 +483,8 @@ class loop_segmentation(object):
                  min_ysize=None, max_ysize=None,
                  min_mass=None, max_mass=None,
                  method='labeling',
-                 raw_format=False):
+                 raw_format=False,
+                 multiprocessing=True):
         '''
         dir_name - string with the name of the directory that holds the 
                    images. Images should have a sequential numbers in their
@@ -512,6 +512,8 @@ class loop_segmentation(object):
         raw_format (default=Flase) - Set to true if the images are in raw 
                                      format (e.g. .dng). Then, we use the
                                      package rawpy to load the images.
+                                     
+        multiprocessing - if True will use multiprocessing, if False will not.
         
                     
         The rest are parameters for the segmentation class. 
@@ -531,6 +533,7 @@ class loop_segmentation(object):
         self.method = method
         self.raw_format = raw_format
         self.DoG_sigma = DoG_sigma
+        self.multiprocess = multiprocessing
         
         
         if self.raw_format == False:
@@ -641,20 +644,31 @@ class loop_segmentation(object):
                   self.bbox_limits, self.mass_limits, self.method, 
                   self.p_size, i0]
         
-        try:
-            import multiprocessing
-            # Running with paralelization:
-            print('Running with multiplrocessing...')
-            t0 = time()
-            args = [(X, 
-                     self.imread_func(os.path.join(params[0], 
-                                                   params[1][X])),
-                     params) for X in range(N)]
-            with multiprocessing.Pool() as pool:
-                results_list = list(pool.starmap(iter_frame, args))
-            print('finished segmentation loop (%.1f sec)'%(time() - t0))
-    
-        except ImportError as e:
+        if self.multiprocess:
+            try:
+                import multiprocessing
+                # Running with paralelization:
+                print('Running with multiplrocessing...')
+                t0 = time()
+                args = [(X, 
+                         self.imread_func(os.path.join(params[0], 
+                                                       params[1][X])),
+                         params) for X in range(N)]
+                with multiprocessing.Pool() as pool:
+                    results_list = list(pool.starmap(iter_frame, args))
+                print('finished segmentation loop (%.1f sec)'%(time() - t0))
+        
+            except ImportError as e:
+                # Running without paralelization:
+                print('Cant import multiprocessing - running on a single core')
+                results_list = [iter_frame(i, 
+                                           self.imread_func(
+                                               os.path.join(params[0], 
+                                                            params[1][i])),
+                                           params) 
+                                for i in tqdm.tqdm(range(N))] 
+                
+        else:
             # Running without paralelization:
             print('Cant import multiprocessing - running on a single core')
             results_list = [iter_frame(i, 

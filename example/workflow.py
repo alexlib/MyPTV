@@ -621,6 +621,7 @@ class workflow(object):
         eq_map = self.get_param('segmentation', 'equilization_map')
         raw_format = self.get_param('segmentation', 'raw_format')
         DoG_sigmas = self.get_param('segmentation', 'DoG_sigmas')
+        multiprocessing = self.get_param('segmentation', 'multiprocessing')
         
         
         # reading preprepared mask
@@ -747,7 +748,8 @@ class workflow(object):
                                                 min_mass=min_mass,
                                                 mask=mask,
                                                 method=method,
-                                                raw_format=raw_format)
+                                                raw_format=raw_format,
+                                                multiprocessing=multiprocessing)
             
                 loopSegment.segment_folder_images()
                 
@@ -1400,7 +1402,7 @@ class workflow(object):
         Will perform 2D tracking of segmented blobs using give data.
         '''
             
-        from myptv.imaging_mod import camera
+        from myptv.imaging_mod import camera_wrapper
         from myptv.tracking_2D_mod import track_2D
         
         # fetchhing the stitching parameters
@@ -1417,8 +1419,12 @@ class workflow(object):
 
         print('\ninitiating 2D tracking...')
 
-        cam = camera(cam_name, res)
-        cam.load('')
+        if cam_name==None:
+            cam = None
+        
+        else:
+            cam = camera_wrapper(cam_name, '')
+            cam.load()
         
         print('\nloading blobs and transforming to lab-space coordinates')
         t2d = track_2D(cam, fname, z_particles, d_max=d_max, dv_max = dv_max, 
