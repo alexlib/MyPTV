@@ -127,10 +127,10 @@
     images: [./Images_cam1/01.tif, ./Images_cam2/01.tif, ./Images_cam3/01.tif]
 
 - fiber_orientations:
-    camera_names: cam1, cam2
-    cam_resolution: 1248, 1248
-    blob_files: blobs_cam1_direction, blobs_cam2_direction
-    fibers_file: particles
+    camera_names: cam1, cam2, cam3
+    method: MinProjection
+    ori_lim: 0.005
+    blob_files: blobs_cam1_directions, blobs_cam2_directions, blobs_cam3_directions
     trajectory_file: trajectories
     save_name: fiber_orientations
 

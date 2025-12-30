@@ -66,7 +66,7 @@
 
 \begin{minipage}{14cm}
 	{\small \sffamily
-	Version: 1.3.6 \\
+	Version: 1.3.7 \\
 	Last updated: \today \\
 	Github repository: \url{https://github.com/ronshnapp/MyPTV} \\
 	Get help \& interact with our community: \url{https://github.com/ronshnapp/MyPTV/discussions}\\
@@ -1194,7 +1194,7 @@ This step is used to re-track trajectories once velocities are known and to "sti
 
 \begin{table}[!ht]
 	\centering
-	\caption{The \texttt{params\_file.yml} parameters for the \texttt{smoothing} command. All paths to files are relative to the \texttt{workflow.py} script.}
+	\caption{The \texttt{params\_file.yml} parameters for the \texttt{stitching} command. All paths to files are relative to the \texttt{workflow.py} script.}
 	\begin{tabular}{l m{12cm}}
 		\hline
 		Parameter & Description\\
@@ -1325,9 +1325,11 @@ To match a point we need to identify it from the different camera views. In the 
 
 \subsection{Fiber tracking} \label{sec:fiber_tracking}
 
-This module reconstructs the orientation of fibers in 3D space. After segmenting the fibers as described in Sec. \ref{sec:fibers_segmentation}, and tracking their centroids as described in Sec. \ref{sec:workflow_track}, their orientations are reconstructed with intersections of so-called \textit{epipolar planes}. As shown in Fig. \ref{fig:fiber_planes}, an epipolar plane is defined by three points: two of them are contained on the 2D fiber orientation in image space, and the third one is the camera center. Given two epipolar planes for a camera pair, there exists a unique intersection between them, which defines the fiber orientation vector $\textbf{p} = [p_x, p_y, p_z]$ in laboratory coordinates. 
+This module reconstructs the orientation of fibers in 3D space. After segmenting the fibers as described in Sec. \ref{sec:fibers_segmentation}, and tracking their centroids as described in Sec. \ref{sec:workflow_track}, their orientations are reconstructed. There are two methods to recover orientations. The first method is with intersections of so-called \textit{epipolar planes}. As shown in Fig. \ref{fig:fiber_planes}, an epipolar plane is defined by three points: two of them are contained on the 2D fiber orientation in image space, and the third one is the camera center. Given two epipolar planes for a camera pair, there exists a unique intersection between them, which defines the fiber orientation vector $\textbf{p} = [p_x, p_y, p_z]$ in laboratory coordinates. The second, method works by minimizing the projection of the fiber on the image sensors, and it is based on the algorithm used in Ref.~\cite{Bounoua2018}.
 
-This principle is based on the same pin-hole model described in Eq. \eqref{eq:3dmodel}, and it is here briefly explained. As shown in Fig. \ref{fig:fiber_planes}, for each camera image a synthetic point $B$ is created from the 2D position and orientation of a segmented fiber. Then, the 3D directional vectors $\vec{r}_X - \vec{O}$ and $\vec{r}_B - \vec{O}$, pointing from the camera center through the segmented fiber center $X$ and the synthetic point $B$, are calculated from Eq. \eqref{eq:3dmodel}. A plane projecting into 3D space is then obtained in each camera view by the vector triplet $\vec{r}_X - \vec{O}, \vec{r}_B - \vec{O}$, and $\vec{O}$. Finally, the intersection of two epipolar planes from a camera pair allows triangulating a line in 3D, which represents the fiber orientation.
+
+This principle of the plane intersection method is based on the same pin-hole model described in Eq. \eqref{eq:3dmodel}, and it is here briefly explained.
+Note that as it is based on the pinhole model, it is currently only available with the Tsai camera model in MyPTV. As shown in Fig. \ref{fig:fiber_planes}, for each camera image a synthetic point $B$ is created from the 2D position and orientation of a segmented fiber. Then, the 3D directional vectors $\vec{r}_X - \vec{O}$ and $\vec{r}_B - \vec{O}$, pointing from the camera center through the segmented fiber center $X$ and the synthetic point $B$, are calculated from Eq. \eqref{eq:3dmodel}. A plane projecting into 3D space is then obtained in each camera view by the vector triplet $\vec{r}_X - \vec{O}, \vec{r}_B - \vec{O}$, and $\vec{O}$. Finally, the intersection of two epipolar planes from a camera pair allows triangulating a line in 3D, which represents the fiber orientation.
 
 The orientation calculation generates substantial errors when the fiber is parallel to the baseline of the camera pairs, i.e. the line connecting the two camera centers. This occurs when the relative angle between epipolar planes is small, and the intersection line is ill-defined. For this reason, the code outputs a $NaN$ when the fiber is produced by epipolar planes with intersection angle less than the empirical threshold of $ 5^{\circ}$.
 
@@ -1369,7 +1371,9 @@ In the current version of MyPTV, the reconstruction works only with two or three
 		%
 		\texttt{camera\_names} & A list of the camera names, e.g. [cam1, cam2, cam3]. Note that the camera files need to be in the same folder where we are running the workflow script\\[.2cm]
 		%
-		\texttt{ori\_lim} & A parameter which defines the threshold for maximum orientation error when more than two cameras are used.\\[.2cm]
+		\texttt{ori\_lim} & A parameter which defines the threshold for maximum orientation error when more than two cameras are used. Only relevant for the \texttt{PlaneIntersect} method.\\[.2cm]
+		%
+		\texttt{method} & The method used to calculate fiber orientations; can be either \texttt{PlaneIntersect} or \texttt{MinProjection}. Note that if \texttt{PlaneIntersect} method is used then only up to three cameras can be used and they must be of Tsai model. The \texttt{MinProjection} method can take any number of cameras and of any camera model. \\[.2cm]
 		%
 		\texttt{blob\_files} & The name of the files that hold the results of the \textbf{blob orientations}. \\[.2cm]
 		%

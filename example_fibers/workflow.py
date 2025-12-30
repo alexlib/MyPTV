@@ -1363,10 +1363,7 @@ class workflow(object):
         print(im_fname)
         
         gui = man_match_gui(camera_names, im_fname, cameras_folder='.')
-    
         
-    
-    
     
     
     def do_orientations(self):
@@ -1391,17 +1388,46 @@ class workflow(object):
         ori_lim = self.get_param('fiber_orientations', 'ori_lim')
         trajectory_file = self.get_param('fiber_orientations','trajectory_file')
         save_name = self.get_param('fiber_orientations', 'save_name')
+        method = self.get_param('fiber_orientations','method')
+        
+        allowed_methods = ['MinProjection', 'PlaneIntersect']
+        if method not in allowed_methods:
+            raise ValueError('Method should be one of ' + str(allowed_methods))
+        
+        print('Running fiber orientations with the %s method'%allowed_methods)
+        
+        
+        # The original Aschari Gambino and Brizzolara method
+        # ==================================================
+        if method == 'PlaneIntersect':  
+            #run orientation code
+            camn = shape(cam_names)[0]
+            print('Running MyFTV on', camn, 'cameras...')
+            if camn == 2:
+                run_2cams_orientation(cam_names,blob_fn,trajectory_file,save_name)
+            elif camn == 3:
+                run_3cams_orientation(ori_lim,cam_names,blob_fn,trajectory_file,save_name)
+            else:
+                print('Currently the PlaneIntersect is limited to a maximum of 3 cameras.')
+                print('Please either continue with the post-processing by matching and tracking') 
+                print('fiber centroids with either 2 or 3 cameras, or use the MinProjection method')
+        
+        
+        # The projection method, based on Verhille's 
+        # work (10.1103/PhysRevLett.121.124502)
+        # ==========================================
+        if method=='MinProjection':
+            from myptv.fibers.fiber_orientation_mod import fiber_ori_projection_method
+            from myptv.fibers.fiber_orientation_mod import fiber_traj_orientation
+            from myptv.imaging_mod import camera_wrapper
+            
+            cams = [camera_wrapper(cn, '.') for cn in cam_names]
+            for c in cams:
+                c.load()
 
-        #run orientation code
-        camn = shape(cam_names)[0]
-        print('Running MyFTV on', camn, 'cameras...')
-        if camn == 2:
-            run_2cams_orientation(cam_names,blob_fn,trajectory_file,save_name)
-        elif camn == 3:
-            run_3cams_orientation(ori_lim,cam_names,blob_fn,trajectory_file,save_name)
-        else:
-            print('The current version of MyFTV is limited to a maximum of 3 cameras.')
-            print('Please continue with the post-processing by matching and tracking fiber centroids with either 2 or 3 cameras.')
+            fto = fiber_traj_orientation(trajectory_file, blob_fn, cams)
+            fto.get_ori_lst()
+            fto.save_orientations(save_name)
 
 
     

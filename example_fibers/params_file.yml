@@ -104,6 +104,7 @@
 
 - fiber_orientations:
     camera_names: cam1, cam2, cam3
+    method: MinProjection
     ori_lim: 0.005
     blob_files: blobs_cam1_directions, blobs_cam2_directions, blobs_cam3_directions
     trajectory_file: trajectories
