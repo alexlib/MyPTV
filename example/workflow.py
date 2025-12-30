@@ -482,6 +482,7 @@ class workflow(object):
             from myptv.TsaiModel.gui_final_cal import cal_gui
             from myptv.TsaiModel.camera import camera_Tsai
             from myptv.TsaiModel.calibrate import calibrate_with_particles_Tsai
+            from numpy import zeros
             
             # setting up a camera instance            
             cam = camera_Tsai(camera_name)
@@ -499,6 +500,7 @@ class workflow(object):
             
             # run the final calibration gui
             print('starting calibration GIU using calibration with particles\n')
+            cal_image = zeros(100,100,dtype='int8')
             gui = cal_gui(cal, cal_image) 
             
             
