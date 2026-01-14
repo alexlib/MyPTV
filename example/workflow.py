@@ -482,6 +482,7 @@ class workflow(object):
             from myptv.TsaiModel.gui_final_cal import cal_gui
             from myptv.TsaiModel.camera import camera_Tsai
             from myptv.TsaiModel.calibrate import calibrate_with_particles_Tsai
+            from numpy import zeros
             
             # setting up a camera instance            
             cam = camera_Tsai(camera_name)
@@ -499,6 +500,7 @@ class workflow(object):
             
             # run the final calibration gui
             print('starting calibration GIU using calibration with particles\n')
+            cal_image = zeros(100,100,dtype='int8')
             gui = cal_gui(cal, cal_image) 
             
             
@@ -1497,120 +1499,62 @@ class workflow(object):
             
         Will perform a fiber orientation analysis
         '''
-        from numpy import loadtxt, empty, array, zeros, pi, sign, savetxt
+        from numpy import loadtxt, empty, array, zeros, pi, sign, savetxt, shape
         from numpy import abs as absnp
         from numpy.linalg import norm
         from pandas import read_csv
-        from myptv.fibers.fiber_orientation_mod import FiberOrientation
-        from myptv.imaging_mod import camera, img_system
-        # from myptv.particle_matching_mod import match_blob_files
-    
-        
+        #from myptv.fibers.fiber_orientation_mod import read_camera_data initialize_camera assign_2d_positions_and_orientations
+        from myptv.fibers.fiber_2cams_orientation_mod import run_2cams_orientation
+        from myptv.fibers.fiber_3cams_orientation_mod import run_3cams_orientation
+
         # fetching the parameters
-        blob_fn = self.get_param('fiber_orientations', 'blob_files')
-        blob_fn = [val.strip() for val in blob_fn.split(',')]
         cam_names = self.get_param('fiber_orientations', 'camera_names')
         cam_names = [val.strip() for val in cam_names.split(',')]
-        res = self.get_param('fiber_orientations', 'cam_resolution')
-        res = tuple([float(val) for val in res.split(',')])
+        blob_fn = self.get_param('fiber_orientations', 'blob_files')
+        blob_fn = [val.strip() for val in blob_fn.split(',')]
+        ori_lim = self.get_param('fiber_orientations', 'ori_lim')
         trajectory_file = self.get_param('fiber_orientations','trajectory_file')
-        
         save_name = self.get_param('fiber_orientations', 'save_name')
-        print(save_name)
-        # setting up the img_system 
-        cams = [camera(cn, res) for cn in cam_names]
-        for cam in cams:
-            try:
-                cam.load('')
-            except:
-                raise ValueError('camera file %s not found'%cam.name)
-        imsys = img_system(cams)
-        # fibers = loadtxt(fibers_file)
-        trajectories = loadtxt(trajectory_file)
+        method = self.get_param('fiber_orientations','method')
         
-        oris = empty((len(trajectories[:,0]),8))
-        shape = (3,1)
-        blobs = []
-        for fn in blob_fn:
-            blobs.append(array(read_csv(fn, sep='\t', header=None)))
-
-        count = 0
-        for frame in range(int(trajectories[-1,-1])+1):
+        allowed_methods = ['MinProjection', 'PlaneIntersect']
+        if method not in allowed_methods:
+            raise ValueError('Method should be one of ' + str(allowed_methods))
+        
+        print('Running fiber orientations with the %s method'%allowed_methods)
+        
+        
+        # The original Aschari Gambino and Brizzolara method
+        # ==================================================
+        if method == 'PlaneIntersect':  
+            #run orientation code
+            camn = shape(cam_names)[0]
+            print('Running MyFTV on', camn, 'cameras...')
+            if camn == 2:
+                run_2cams_orientation(cam_names,blob_fn,trajectory_file,save_name)
+            elif camn == 3:
+                run_3cams_orientation(ori_lim,cam_names,blob_fn,trajectory_file,save_name)
+            else:
+                print('Currently the PlaneIntersect is limited to a maximum of 3 cameras.')
+                print('Please either continue with the post-processing by matching and tracking') 
+                print('fiber centroids with either 2 or 3 cameras, or use the MinProjection method')
+        
+        
+        # The projection method, based on Verhille's 
+        # work (10.1103/PhysRevLett.121.124502)
+        # ==========================================
+        if method=='MinProjection':
+            from myptv.fibers.fiber_orientation_mod import fiber_ori_projection_method
+            from myptv.fibers.fiber_orientation_mod import fiber_traj_orientation
+            from myptv.imaging_mod import camera_wrapper
             
-            frame_trajectories = [line for line in trajectories if line[7] == frame]
+            cams = [camera_wrapper(cn, '.') for cn in cam_names]
+            for c in cams:
+                c.load()
 
-            for line in range(len(frame_trajectories)):    
-                X = array([zeros(shape),zeros(shape)])
-                B = array([zeros(shape),zeros(shape)])
-                
-                n_x_prev = 0
-                n_y_prev = 0
-                n_z_prev = 0
-                
-                for cam in range(2):
-                    
-                    frame_blobs = [line for line in blobs[cam] if line[5] == frame]
-                    reso = cams[cam].resolution[0]
-                    index = int(frame_trajectories[line][4+cam])
-                    
-                    x_corr = cams[cam].xh
-                    y_corr = cams[cam].yh
-                    
-                    temp1_x = (frame_blobs[index][0]) - (reso/2. + x_corr)
-                    temp1_b = temp1_x + frame_blobs[index][6]*100
-                    
-                    temp2_x = (frame_blobs[index][1]) - (reso/2. + y_corr)
-                    temp2_b = temp2_x + frame_blobs[index][7]*100
-                    
-                    # coordinate transformation
-                    X[cam][0,0] = temp2_x
-                    B[cam][0,0] = temp2_b
-                    
-                    X[cam][1,0] = temp1_x
-                    B[cam][1,0] = temp1_b
-                    
-                # get orientations
-                o = FiberOrientation(X, B)
-                c,u,ori = o.image2fiber(imsys.cameras)
-                ori = ori/pi*180
-                u /= norm(u)
-                
-                if line == 0:
-                    n_x_prev = u[0]
-                    n_y_prev = u[1]
-                    n_z_prev = u[2]
-                
-                # correct sign
-                value = 0.2
-                if absnp(absnp(u[0]) - absnp(n_x_prev)) < value and sign(u[0]) != sign(n_x_prev):
-                    u[0] *= -1
-                if absnp(absnp(u[1]) - absnp(n_y_prev)) < value and sign(u[1]) != sign(n_y_prev):
-                    u[1] *= -1
-                if absnp(absnp(u[2]) - absnp(n_z_prev)) < value and sign(u[2]) != sign(n_z_prev):
-                    u[2] *= -1
-                
-                n_x_prev = u[0]
-                n_y_prev = u[1]
-                n_z_prev = u[2]
-            
-                temp = frame_trajectories[line]
-
-                temp[1] = u[0]
-                temp[2] = u[1]
-                temp[3] = u[2]
-
-                oris[count] = temp
-                count += 1
-
-                
-                
-        # saving the data
-        if save_name is not None:
-            print('\n', 'Saving the data.')    
-            # o.save_results(save_name, oris)
-            savetxt(save_name, oris, fmt = 
-                       ['%d', '%.3f', '%.3f', '%.3f', '%d', '%d', '%.2f', '%.2f'], delimiter='\t')
-        print('\n', 'Done.')
+            fto = fiber_traj_orientation(trajectory_file, blob_fn, cams)
+            fto.get_ori_lst()
+            fto.save_orientations(save_name)
     
     
     

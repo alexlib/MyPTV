@@ -10,6 +10,7 @@ import numpy as np
 import math
 from scipy import linalg
 
+
 class FiberOrientation(object):
     '''A class to obtain the 3D fiber orientation from two fiber 
     points on every segmented image'''
@@ -179,13 +180,213 @@ class FiberOrientation(object):
     
     
     
+
+# ===============================================================
+#      Fiber orientations from minimized projection err (Ron)
+#         
+#         (2 classes for the minimized projection method)
+#
+# Use fiber_traj_orientation to calculate fiber orientations and
+# save the results on the disk. The fiber_ori_projection_method
+# minimizes projection for single blobs. 
+# ===============================================================
+
+
+import numpy as np
+from scipy.optimize import differential_evolution
+import pandas as pd
+from tqdm import tqdm
+
+
+class fiber_ori_projection_method(object):
+    '''
+    A class for finding the orientation of a fiber by minimizing the 
+    discrepancy with respect to the orientation of the blob.
+    '''
+    
+    def __init__(self, cams, imageOrients, pos, ori0=None):
+        '''
+        cams - a list of Nc calibrated objects that can project lab-space 
+               positions to image space positions.
+        
+        imageOrients - a list of Nc 2D unit vectors representing the 
+                       orientation of the fiber long axis in image space of
+                       each camra. to compare the results during minimization 
+                       we make sure that the first vector component is always
+                       positive.
+                       
+        pos - the lab space, 3D, position of the fiber center.
+        
+        ori0 - an optional initial guess for the orientation.
+        '''
+        
+        self.cams = cams
+        self.imgOri_lst = imageOrients
+        
+        for i in range(len(self.imgOri_lst)):
+            
+            # ensuring the format is right (first component positive)
+            if self.imgOri_lst[i][0]<0:
+                self.imgOri_lst[i] = self.imgOri_lst * -1
+            
+            # ensuring norm is 1
+            self.imgOri_lst[i] = self.imgOri_lst[i] / np.linalg.norm(self.imgOri_lst[i])
+            
+        
+        self.pos = pos
+        
+        if ori0 is None:
+            self.ori0 = np.array([1,1,1])/3**0.5
+            self.smartIG = 0 # index whether an initial guess was given
+        
+        else:
+            self.ori0 = ori0
+            self.smartIG = 1
+        
+    
+    def OriToImageOri(self, ori):
+        '''
+        Given a vector, this function estimates and returns its 
+        image space orientations in each camera, assuming it is centered
+        at self.pos.
+        '''
+        ori = ori/np.linalg.norm(ori)
+        ds = 1e-6
+        p1 = self.pos + ori*ds/2
+        p2 = self.pos - ori*ds/2
+        
+        imgOri_lst = []
+        for e, cam in enumerate(self.cams):
+            c1 = np.array(cam.projection(p1))[::-1]
+            c2 = np.array(cam.projection(p2))[::-1]
+            imgOri = (c1-c2) / np.linalg.norm(c1-c2)
+            if imgOri[0]<0:
+                imgOri = -1*imgOri
+            imgOri_lst.append(imgOri)
+            
+        return imgOri_lst
+    
+    
+    def Minimize_Ori(self):
+        '''
+        Searches for a vector that minimizes the difference in orientation 
+        between its projection on image-space and segmented orientation of the
+        blobs.
+        
+        returns
+        
+        ori - predicted orientation that minimizes projection vs. segmentation 
+              error.
+        
+        MSE - mean squared orientation error.
+        '''
+        def ori_MSE(ori):
+            res = np.array(self.OriToImageOri(ori)) - np.array(self.imgOri_lst)
+            MSE = np.mean(np.sum(res**2, axis=0))
+            return MSE
+        
+        # narrowing the search if an initial guess was given
+        if self.smartIG: popsize = 5
+        else: popsize = 15
+        
+        res_de = differential_evolution(ori_MSE, bounds=[(0,1),(-1,1),(-1,1)], popsize=popsize)
+        ori = res_de.x / np.linalg.norm(res_de.x)
+        
+        MSE = res_de.fun
+        
+        return ori, MSE 
     
     
     
+
+
+
+class fiber_traj_orientation(object):
+    '''
+    Given a trajectory file, a list of files with segmented 
+    fiber directions, and a list of cameras, this class is
+    used to determine the orientations of the fiber using
+    the projection method.
+    '''
+    
+    def __init__(self, traj_filename, blobs_ori_filename, cams):
+        
+        self.cams = cams
+        
+        self.blobs_ori = [] 
+        for bfn in blobs_ori_filename:
+            data = pd.read_csv(bfn, sep='\t', header=None)    
+            self.blobs_ori.append(dict([(k,np.array(g)) for k,g in data.groupby(5)]))
+        
+        data = pd.read_csv(traj_filename, sep='\t', header=None)
+        self.trajs = dict([(k,np.array(g)) for k, g in data.groupby(0)])
+    
+        
+    def get_traj_orientation(self, traj):
+        '''
+        Finds the orientations of a given fiber by minimizing the
+        error of its image projections
+
+        traj - an array representing the trajectory
+
+        blobs_ori - a list of dictionaries holding the image-space orientations
+                    of blobs. the dictionaries' keys are frame numbers and the
+                    list indexes are camera indexes.
+
+        cams - a list of calibrated camera objects (also camer_wraper).
+        '''
+        blob_indexes = list(traj[:,4:-2])
+        frames = list(traj[:,-1])
+        traj_ori = []
+
+        for e, frm in enumerate(frames):
+            # get the image space orientation at frame e
+            imageOrients = []
+            for i in range(len(self.cams)):
+                ind_ie = int(blob_indexes[e][i])
+                imageOrients.append(self.blobs_ori[i][e][ind_ie,6:8])
+
+            # set up an fiberOrientations instance
+            pos = traj[e,1:4]
+            if len(traj_ori)>0: ori0=traj_ori[-1]
+            else: ori0=None
+            FO = fiber_ori_projection_method(self.cams, imageOrients, pos, ori0=ori0)
+
+            # Minimize for the fiber orientation
+            traj_ori.append(FO.Minimize_Ori())
+
+        return traj_ori
     
     
+    def get_ori_lst(self):
+        '''
+        Iterates over the trajectories and obtains the orientation
+        of each of them. The results are stored in self.ori_lst
+        '''
+        print('','Getting trajectory orientations...','')
+        self.ori_lst = []
+        
+        for k in tqdm(self.trajs.keys()):
+            traj = self.trajs[k]
+            ori = self.get_traj_orientation(traj)
+            for i in range(len(traj)):
+                ln = traj[i].copy()
+                ln[1:4] = ori[i][0]
+                self.ori_lst.append(ln)
+                
     
-    
+    def save_orientations(self, savename):
+        '''
+        Saves the results of self.get_ori_lst() as a tab separated 
+        file with the same format as trajectories files.
+        '''
+        fmt = ['%d', '%.4f', '%.4f', '%.4f']
+        for i in range(len(self.ori_lst[0])-6):
+            fmt.append('%d')
+        fmt += ['%.3f', '%.3f']
+        np.savetxt(savename , self.ori_lst,
+                delimiter='\t', fmt=fmt)
+                
     
     
     

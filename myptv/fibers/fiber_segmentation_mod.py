@@ -278,7 +278,7 @@ class fiber_segmentation(object):
             x, y = props.centroid
             minr, minc, maxr, maxc = props.bbox
             box_size = [maxr - minr, maxc - minc]
-            orientation = props.orientation
+            ori = props.orientation
             center = [round(x, ndigits=2), round(y, ndigits=2)] 
             if hasattr(props, 'axis_major_length'):
                 a = props.axis_major_length
@@ -289,8 +289,10 @@ class fiber_segmentation(object):
             pca_lim = a / b if b > 0 else -1
             mass = a * b
             if pca_lim >= self.pca_limit:
-                pca = [math.cos(orientation), math.sin(orientation), pca_lim]
-                blobs.append( [center, box_size, mass, pca] )
+                pca = [math.cos(ori), math.sin(ori), pca_lim]
+                endpoints = [x + math.cos(ori)*a/2, y + math.sin(ori)*a/2, 
+                             x - math.cos(ori)*a/2, y - math.sin(ori)*a/2,]
+                blobs.append( [center, box_size, mass, pca, endpoints] )
                 #print('ecco la pca_lim: ', pca_lim)
         self.blobs = blobs
    
@@ -367,6 +369,20 @@ class fiber_segmentation(object):
             
         savetxt(fname, blob_list, 
                 fmt=['%.02f','%.02f','%d','%d','%d','%d','%.05f','%.05f'], delimiter='\t')
+        
+        
+    def save_results_endpoints(self, fname):
+        '''
+        This is used to save the blobs found in a text file with 
+        the given name fname.
+        '''
+        blob_list = []
+        for blb in self.blobs:
+            blob_list.append([blb[0][0], blb[0][1], 0, 
+                              blb[4][0], blb[4][1], blb[4][2], blb[4][3]])
+            
+        savetxt(fname, blob_list, 
+                fmt=['%.03f','%.03f','%d','%.03f','%.03f','%.03f','%.03f'], delimiter='\t')
         
         
 
@@ -546,6 +562,17 @@ class loop_fiber_segmentation(object):
         '''
         savetxt(fname, self.blobs, 
                 fmt=['%.02f','%.02f','%d','%d','%d','%d','%.05f','%.05f'], delimiter='\t')
+        
+        
+    def save_results_endpoints(self, fname):
+        '''
+        Will save the extracted blobs. 
+        
+        The format of the results is
+        center_x, center_y, size_x, size_y, area, frame_number, x,y
+        '''
+        savetxt(fname, self.blobs, 
+                fmt=['%.03f','%.03f','%d','%.03f','%.03f','%.03f','%.03f'], delimiter='\t')
         
     
     
