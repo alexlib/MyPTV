@@ -311,7 +311,7 @@ if __name__=='__main__':
     
     from imaging_mod import camera_wrapper #camera
     
-    fname = '/home/ron/working_PTV_data/blobs_cam1'
+    fname = '../example/blobs_cam1'
     
     #cam = camera('cam1', (1024,1280))
     cam = camera_wrapper('cam1', '../example/')
