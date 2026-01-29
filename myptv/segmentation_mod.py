@@ -26,7 +26,7 @@ from skimage import io
 
 # from scipy.signal import convolve2d
 from scipy.ndimage import gaussian_filter, median_filter, label
-from scipy.ndimage.measurements import find_objects
+from scipy.ndimage import find_objects
 from scipy.spatial import KDTree
 
 import tqdm
@@ -603,6 +603,16 @@ class loop_segmentation(object):
         else: 
             BG_images=self.image_files[::int(len(self.image_files)/400+1)][:200]
         
+        # If there is only one image, using it as a per-pixel "background" would
+        # subtract the entire signal (abs(im - BG) == 0). Instead, use a constant
+        # background equal to the image median to suppress noise while keeping
+        # bright blobs.
+        if len(BG_images) <= 1:
+            im0 = self.imread_func(os.path.join(self.dir_name, BG_images[0])) * 1.0
+            from numpy import median
+            self.BG = float(median(im0))
+            return
+
         BG_images = [os.path.join(self.dir_name, im) for im in BG_images]
         # reading the images for BG subtraction
         

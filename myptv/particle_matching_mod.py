@@ -22,6 +22,16 @@ from math import isinf
 from pandas import read_csv
 
 
+def match_blob_files(*args, **kwargs):
+    """Legacy entrypoint.
+
+    Historically, the public API exposed `match_blob_files(...)`. The current
+    implementation lives in `match_blob_files_Ray_Traversal`.
+    """
+
+    return match_blob_files_Ray_Traversal(*args, **kwargs)
+
+
 
 
 
@@ -1519,6 +1529,14 @@ class initiate_time_matching_Ray_Traversal(object):
                 updated_pd[cn][ind] = [-1,-1]
                 
         return updated_pd
+
+
+    # ---------------------------------------------------------------------------
+    # Backwards compatibility
+    # ---------------------------------------------------------------------------
+
+    # Older code/tests expect `match_blob_files` to be available from this module.
+    match_blob_files = match_blob_files_Ray_Traversal
 
 
 

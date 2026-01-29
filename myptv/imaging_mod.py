@@ -25,6 +25,83 @@ from myptv.extendedZolof.camera import camera_extendedZolof
 from myptv.extendedZolof.calibrate import calibrate_extendedZolof
 
 
+class camera(object):
+    """Legacy Tsai camera interface.
+
+    The historical public API (and this repo's tests) expect:
+    - `camera(name, resolution, cal_points_fname=None)`
+    - Ability to set `O`, `theta`, `f`, `xh`, `yh` directly
+    - `load(dir_path)` supporting the legacy camera file format
+    - `get_epipolarline(eta, zeta)`
+
+    Newer code can use `camera_wrapper` for model-selection support.
+    """
+
+    def __init__(self, name, resolution=(1, 1), cal_points_fname=None):
+        object.__setattr__(self, "modelName", "Tsai")
+        cam = camera_Tsai(name, cal_points_fname=cal_points_fname)
+        cam.resolution = array(resolution)
+        object.__setattr__(self, "_cam", cam)
+
+    def __getattr__(self, item):
+        return getattr(self._cam, item)
+
+    def __setattr__(self, key, value):
+        if key in {"_cam", "modelName"}:
+            object.__setattr__(self, key, value)
+        else:
+            setattr(self._cam, key, value)
+
+    @property
+    def name(self):
+        return self._cam.name
+
+    def load(self, dir_path):
+        """Load camera parameters from disk.
+
+        Supports both the newer format (model name header) and the older
+        legacy format used by the test fixtures.
+        """
+        full_path = os.path.join(dir_path, self._cam.name)
+        with open(full_path, "r") as f:
+            first = f.readline().strip()
+
+            # Newer format: first token is a model name.
+            token = first.split()[0] if first else ""
+            if token in {"Tsai", "extendedZolof"}:
+                # Delegate to the model implementation for modern files.
+                if token != "Tsai":
+                    raise ValueError(
+                        "Legacy `camera` supports Tsai files only; use `camera_wrapper` for other models."
+                    )
+                self._cam.load(dir_path)
+                return
+
+            # Legacy format (no model header):
+            # 1) name
+            # 2) O (3 floats)
+            # 3) theta (3 floats)
+            # 4) f
+            # 5) xh yh
+            # 6-8) E rows (3 x 5 floats)
+            name = first
+            if name:
+                self._cam.give_name(name)
+
+            self._cam.O = array([float(s) for s in f.readline().split()])
+            self._cam.theta = array([float(s) for s in f.readline().split()])
+            self._cam.f = float(f.readline().strip())
+            self._cam.xh, self._cam.yh = array([float(s) for s in f.readline().split()])
+
+            for i in range(3):
+                self._cam.E[i, :] = array([float(s) for s in f.readline().split()])
+
+        self._cam.calc_R()
+
+    def get_epipolarline(self, eta, zeta):
+        return (self._cam.O, self._cam.get_r(eta, zeta))
+
+
 
 
 class img_system(object):
@@ -146,7 +223,7 @@ class camera_wrapper(object):
     and can handle the tasks of epipolar lines <-> pixel transformations. 
     '''
     
-    def __init__(self, fileName, dirPath):
+    def __init__(self, fileName, dirPath, resolution=None, cal_points_fname=None):
         '''
         Input:
             
@@ -157,6 +234,8 @@ class camera_wrapper(object):
         '''
         self.fileName = fileName
         self.dir = dirPath
+        self._resolution = resolution
+        self.cal_points_fname = cal_points_fname
         self.ListOfModels = ['Tsai', 'extendedZolof']
         self.camera = None
         
@@ -171,7 +250,7 @@ class camera_wrapper(object):
             return msg1 + '; camera loaded:\n\n' + self.camera.__repr__()
     
     
-    def load(self):
+    def load(self, dirPath=None):
         '''
         Here we read the first line of fileName, and from that we infer
         the 3D model and the class that should be used. Then, the camera
@@ -180,6 +259,9 @@ class camera_wrapper(object):
         
         dirPath - the path of the directory in which the file is stored.
         '''
+        if dirPath is not None:
+            self.dir = dirPath
+
         fullPath = os.path.join(self.dir, self.fileName)
         f = open(fullPath, 'r')
         firstLine = f.readline()
@@ -192,11 +274,13 @@ class camera_wrapper(object):
         # =====================================================================
         
         if self.modelName == 'Tsai':
-            self.camera = camera_Tsai(self.fileName)
+            self.camera = camera_Tsai(self.fileName, cal_points_fname=self.cal_points_fname)
+            if self._resolution is not None:
+                self.camera.resolution = self._resolution
             self.camera.load(self.dir)
         
         if self.modelName =='extendedZolof':
-            self.camera = camera_extendedZolof(self.fileName)
+            self.camera = camera_extendedZolof(self.fileName, cal_points_fname=self.cal_points_fname)
             self.camera.load(self.dir)
             
     
@@ -218,11 +302,14 @@ class camera_wrapper(object):
             calibratorClass = calibrate_Tsai
              
         elif self.modelName == 'extendedZolof':
-            calibratorClass = ...
+            calibratorClass = calibrate_extendedZolof
             
         calibrator = calibratorClass(self.camera, lab_coords, img_coords)
         
         return calibrator
+
+
+
     
     
     

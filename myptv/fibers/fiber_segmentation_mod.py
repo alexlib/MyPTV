@@ -19,7 +19,7 @@ from numpy import median as npmedian
 
 from scipy.signal import convolve2d
 from scipy.ndimage import gaussian_filter, median_filter, label
-from scipy.ndimage.measurements import find_objects
+from scipy.ndimage import find_objects
 # from scipy.spatial import KDTree
 
 #agambino
